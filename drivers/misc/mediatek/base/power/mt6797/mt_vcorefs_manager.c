@@ -254,7 +254,7 @@ int vcorefs_request_dvfs_opp(enum dvfs_kicker kicker, enum dvfs_opp opp)
 	}
 
 	if (!is_screen_on) {
-		if (kicker != KIR_REESPI && kicker != KIR_TEESPI)
+		if (kicker != KIR_REESPI && kicker != KIR_TEESPI && kicker != KIR_SCP)
 			return -1;
 	}
 

@@ -401,6 +401,9 @@ int spm_set_vcore_dvfs(int opp, u32 md_dvfs_req, int kicker, int user_opp)
 		if (kicker == KIR_REESPI || kicker == KIR_TEESPI)
 			spm_mask_wakeup_event(0);
 
+		if (kicker == KIR_SCP)
+			udelay(410);
+
 		spm_vcorefs_crit("req: 0x%x, target: 0x%x\n", dvfs_req, target_sta);
 	}
 
