@@ -1081,6 +1081,11 @@ void mt65xx_usb11_phy_recover(void)
 	/* <4> 18. wait 800 usec. */
 	udelay(800);
 
+	MYDBG("before :%x\n", USB11PHY_READ8(0x72));
+	USB11PHY_CLR8(0x72, 0x0F);
+	USB11PHY_SET8(0x72, 0x09);
+	MYDBG("after :%x\n", USB11PHY_READ8(0x72));
+
 	usb11_hs_slew_rate_cal();
 #endif
 }
