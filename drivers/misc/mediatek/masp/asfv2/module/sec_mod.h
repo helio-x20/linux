@@ -31,6 +31,8 @@ extern void sec_core_exit(void);
 #define NUM_SBC_PUBK_HASH           8
 #define NUM_CRYPTO_SEED          16
 #define NUM_RID 4
+
+
 #ifdef CONFIG_OF
 /*device information data*/
 struct masp_tag {

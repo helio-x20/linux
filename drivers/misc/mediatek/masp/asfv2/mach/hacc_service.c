@@ -1,8 +1,6 @@
-#include <mach/mt_typedefs.h>
-
+#include <linux/types.h>
 #include "hacc_tee.h"
 
-typedef unsigned int u32;
 
 int masp_hal_get_uuid(unsigned int *uuid)
 {

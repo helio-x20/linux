@@ -98,11 +98,12 @@ static const struct of_device_id masp_of_ids[] = {
  ******************************/
 int es_probe(struct platform_device *dev)
 {
-	#ifdef CONFIG_ARM64
+
+#ifdef CONFIG_ARM64
 	es_base = (unsigned long long)of_iomap(dev->dev.of_node, 0);
-	#else
+#else
 	es_base = (unsigned int)of_iomap(dev->dev.of_node, 0);
-	#endif
+#endif
 	if (!es_base) {
 		pr_err("[%s] ES register remapping failed\n", SEC_DEV_NAME);
 		return -ENXIO;
