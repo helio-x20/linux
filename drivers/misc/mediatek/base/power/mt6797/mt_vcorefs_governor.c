@@ -319,9 +319,7 @@ bool vcorefs_get_screen_on_state(void)
 	struct governor_profile *gvrctrl = &governor_ctrl;
 	int r;
 
-	mutex_lock(&governor_mutex);
 	r = gvrctrl->screen_on;
-	mutex_unlock(&governor_mutex);
 
 	return r;
 }
@@ -980,6 +978,7 @@ void governor_autok_manager(void)
 
 bool governor_autok_check(int kicker)
 {
+#if 0
 	int is_autok = true;
 	struct governor_profile *gvrctrl = &governor_ctrl;
 
@@ -995,6 +994,8 @@ bool governor_autok_check(int kicker)
 	mutex_unlock(&governor_mutex);
 
 	return is_autok;
+#endif
+	return false;
 }
 
 bool governor_autok_lock_check(int kicker, int opp)
@@ -1104,6 +1105,9 @@ int vcorefs_late_init_dvfs(void)
 	int flag;
 
 	if (is_vcorefs_feature_enable()) {
+
+		kicker_table[KIR_REESPI] = -1;
+		kicker_table[KIR_TEESPI] = -1;
 
 		flag = vcorefs_check_feature_enable();
 		vcorefs_crit("[%s] vcore_dvs: %d, ddr_dfs: %d, freq_dfs: %d, pcm_flag: 0x%x\n", __func__,

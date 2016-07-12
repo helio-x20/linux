@@ -279,19 +279,6 @@ void __spm_reset_and_init_pcm(const struct pcm_desc *pcmdesc)
 }
 
 #elif defined(CONFIG_ARCH_MT6797)
-void spm_vcorefs_spi_check(void)
-{
-	int retry = 0, timeout = 100000;
-
-	while (kicker_table[KIR_REESPI] == OPP_0 || kicker_table[KIR_TEESPI] == OPP_0) {
-		if (retry > timeout)
-			BUG();
-
-		udelay(1);
-		retry++;
-	}
-}
-
 void __spm_reset_and_init_pcm(const struct pcm_desc *pcmdesc)
 {
 	u32 con1;
@@ -331,9 +318,6 @@ void __spm_reset_and_init_pcm(const struct pcm_desc *pcmdesc)
 					udelay(1);
 					retry++;
 				}
-
-				if (!is_vcorefs_fw(1))
-					spm_vcorefs_spi_check();
 			}
 
 #if SPM_AEE_RR_REC

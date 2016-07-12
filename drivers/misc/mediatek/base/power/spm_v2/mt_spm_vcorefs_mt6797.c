@@ -411,6 +411,19 @@ int spm_set_vcore_dvfs(int opp, u32 md_dvfs_req, int kicker, int user_opp)
 	return t_dvfs;
 }
 
+static void spm_vcorefs_spi_check(void)
+{
+	int retry = 0, timeout = 1000000;
+
+	while (kicker_table[KIR_REESPI] == OPP_0 || kicker_table[KIR_TEESPI] == OPP_0) {
+		if (retry > timeout)
+			BUG();
+
+		udelay(1);
+		retry++;
+	}
+}
+
 static void __go_to_vcore_dvfs(u32 spm_flags, u8 spm_data)
 {
 	struct pcm_desc *pcmdesc;
@@ -483,6 +496,9 @@ static void _spm_vcorefs_init_reg(void)
 void spm_go_to_vcore_dvfs(u32 spm_flags, u32 spm_data)
 {
 	unsigned long flags;
+
+	if (!is_vcorefs_fw(DYNAMIC_LOAD))
+		spm_vcorefs_spi_check();
 
 	spin_lock_irqsave(&__spm_lock, flags);
 
