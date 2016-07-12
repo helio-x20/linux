@@ -44,6 +44,16 @@ extern "C" {
 	int32_t cmdqRecCreate(CMDQ_SCENARIO_ENUM scenario, cmdqRecHandle *pHandle);
 
 /**
+ * Set engine flag for command queue picking HW thread
+ * Parameter:
+ *     pHandle: pointer to retrieve the handle
+ *     engineFlag: Flag use to identify which HW module can be accessed
+ * Return:
+ *     0 for success; else the error code is returned
+ */
+	int32_t cmdqRecSetEngine(cmdqRecHandle handle, uint64_t engineFlag);
+
+/**
  * Reset command queue recorder commands
  * Parameter:
  *    handle: the command queue recorder handle
@@ -430,6 +440,61 @@ extern "C" {
 	int32_t cmdqRecQueryOffset(cmdqRecHandle handle, uint32_t startIndex,
 				   const CMDQ_CODE_ENUM opCode, CMDQ_EVENT_ENUM event);
 
+/**
+ * acquire resource by resourceEvent
+ * Parameter:
+ *     handle: the command queue recorder handle
+ *     resourceEvent: the event of resource to control in GCE thread
+ * Return:
+ *     0 for success; else the error code is returned
+ * Note:
+ *       mutex protected, be careful
+ */
+	int32_t cmdqRecAcquireResource(cmdqRecHandle handle, CMDQ_EVENT_ENUM resourceEvent);
+
+/**
+ * acquire resource by resourceEvent and ALSO ADD write instruction to use resource
+ * Parameter:
+ *	   handle: the command queue recorder handle
+ *	   resourceEvent: the event of resource to control in GCE thread
+ *       addr, value, mask: same as cmdqRecWrite
+ * Return:
+ *	   0 for success; else the error code is returned
+ * Note:
+ *       mutex protected, be careful
+ *	   Order: CPU clear resourceEvent at first, then add write instruction
+ */
+	int32_t cmdqRecWriteForResource(cmdqRecHandle handle, CMDQ_EVENT_ENUM resourceEvent,
+		uint32_t addr, uint32_t value, uint32_t mask);
+
+/**
+ * Release resource by ADD INSTRUCTION to set event
+ * Parameter:
+ *	   handle: the command queue recorder handle
+ *	   resourceEvent: the event of resource to control in GCE thread
+ * Return:
+ *	   0 for success; else the error code is returned
+ * Note:
+ *       mutex protected, be careful
+ *       Remember to flush handle after this API to release resource via GCE
+ */
+	int32_t cmdqRecReleaseResource(cmdqRecHandle handle, CMDQ_EVENT_ENUM resourceEvent);
+
+/**
+ * Release resource by ADD INSTRUCTION to set event
+ * Parameter:
+ *	   handle: the command queue recorder handle
+ *	   resourceEvent: the event of resource to control in GCE thread
+ *	   addr, value, mask: same as cmdqRecWrite
+ * Return:
+ *	   0 for success; else the error code is returned
+ * Note:
+ *       mutex protected, be careful
+ *	   Order: Add add write instruction at first, then set resourceEvent instruction
+ *       Remember to flush handle after this API to release resource via GCE
+ */
+	int32_t cmdqRecWriteAndReleaseResource(cmdqRecHandle handle, CMDQ_EVENT_ENUM resourceEvent,
+		uint32_t addr, uint32_t value, uint32_t mask);
 
 #ifdef __cplusplus
 }

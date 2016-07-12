@@ -15,7 +15,7 @@
 #define DECLARE_ENABLE_HW_CLOCK(HW_NAME) uint32_t cmdq_dev_enable_clock_##HW_NAME(bool enable)
 DECLARE_ENABLE_HW_CLOCK(SMI_COMMON);
 DECLARE_ENABLE_HW_CLOCK(SMI_LARB0);
-#ifdef CMDQ_CG_DISP0_MUTEX_32K
+#ifdef CMDQ_USE_LEGACY
 DECLARE_ENABLE_HW_CLOCK(MUTEX_32K);
 #endif
 #undef DECLARE_ENABLE_HW_CLOCK
@@ -48,13 +48,15 @@ bool cmdq_dev_gce_clock_is_enable(void);
 const long cmdq_dev_get_module_base_VA_GCE(void);
 const long cmdq_dev_get_module_base_VA_MMSYS_CONFIG(void);
 const long cmdq_dev_alloc_module_base_VA_by_name(const char *name);
+/* Other modules information */
 void cmdq_dev_free_module_base_VA(const long VA);
+const long cmdq_dev_get_APXGPT2_count(void);
 /* physical address */
-void cmdq_dev_get_module_PA_for_stat(const char *name, int index, long *startPA, long *endPA);
+void cmdq_dev_get_module_PA(const char *name, int index, long *startPA, long *endPA);
 const long cmdq_dev_get_module_base_PA_GCE(void);
 /* GCE event */
-void cmdq_dev_init_module_HWEvent(void);
-void cmdq_dev_test_event_correctness(void);
+void cmdq_dev_init_event_table(struct device_node *node);
+void cmdq_dev_test_dts_correctness(void);
 /* device initialization / deinitialization */
 void cmdq_dev_init(struct platform_device *pDevice);
 void cmdq_dev_deinit(void);

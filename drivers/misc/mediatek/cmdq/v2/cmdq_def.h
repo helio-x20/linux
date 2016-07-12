@@ -1,7 +1,112 @@
-#ifndef __CMDQ_DEF_COMMON_H__
-#define __CMDQ_DEF_COMMON_H__
+#ifndef __CMDQ_DEF_H__
+#define __CMDQ_DEF_H__
 
 #include <linux/kernel.h>
+
+#define CMDQ_DRIVER_DEVICE_NAME         "mtk_cmdq"
+
+/* #define CMDQ_COMMON_ENG_SUPPORT */
+#ifdef CMDQ_COMMON_ENG_SUPPORT
+#include "cmdq_engine_common.h"
+#else
+#include "cmdq_engine.h"
+#endif
+
+#define CMDQ_SPECIAL_SUBSYS_ADDR (99)
+
+#define CMDQ_GPR_SUPPORT
+#define CMDQ_PROFILE_MARKER_SUPPORT
+
+#ifdef CMDQ_PROFILE_MARKER_SUPPORT
+#define CMDQ_MAX_PROFILE_MARKER_IN_TASK (5)
+#endif
+
+#define CMDQ_INVALID_THREAD             (-1)
+
+#define CMDQ_MAX_THREAD_COUNT           (16)
+#define CMDQ_MAX_TASK_IN_THREAD         (16)
+#define CMDQ_MAX_READ_SLOT_COUNT        (4)
+#define CMDQ_INIT_FREE_TASK_COUNT       (8)
+
+#define CMDQ_MAX_HIGH_PRIORITY_THREAD_COUNT (7)	/* Thread that are high-priority (display threads) */
+#define CMDQ_MIN_SECURE_THREAD_ID		(12)
+#define CMDQ_MAX_SECURE_THREAD_COUNT	(3)
+
+#define CMDQ_MAX_ERROR_COUNT            (2)
+#define CMDQ_MAX_RETRY_COUNT            (1)
+/* ram optimization related configuration */
+#ifdef CONFIG_MTK_GMO_RAM_OPTIMIZE
+#define CMDQ_MAX_RECORD_COUNT           (100)
+#else
+#define CMDQ_MAX_RECORD_COUNT           (1024)
+#endif
+
+#define CMDQ_MAX_PREFETCH_INSTUCTION    (240)	/* Maximum prefetch buffer size, in instructions. */
+#define CMDQ_INITIAL_CMD_BLOCK_SIZE     (PAGE_SIZE)
+#define CMDQ_EMERGENCY_BLOCK_SIZE       (256 * 1024)	/* 256 KB command buffer */
+#define CMDQ_EMERGENCY_BLOCK_COUNT      (4)
+#define CMDQ_INST_SIZE                  (2 * sizeof(uint32_t))	/* instruction is 64-bit */
+
+#define CMDQ_MAX_LOOP_COUNT             (1000000)
+#define CMDQ_MAX_INST_CYCLE             (27)
+#define CMDQ_MIN_AGE_VALUE              (5)
+#define CMDQ_MAX_ERROR_SIZE             (8 * 1024)
+
+/* max value of CMDQ_THR_EXEC_CMD_CNT (value starts from 0) */
+#ifdef CMDQ_USE_LEGACY
+#define CMDQ_MAX_COOKIE_VALUE           (0xFFFF)
+#else
+#define CMDQ_MAX_COOKIE_VALUE           (0xFFFFFFFF)
+#endif
+#define CMDQ_ARG_A_SUBSYS_MASK          (0x001F0000)
+
+#ifdef CONFIG_MTK_FPGA
+#define CMDQ_DEFAULT_TIMEOUT_MS         (10000)
+#else
+#define CMDQ_DEFAULT_TIMEOUT_MS         (1000)
+#endif
+
+#define CMDQ_ACQUIRE_THREAD_TIMEOUT_MS  (2000)
+#define CMDQ_PREDUMP_TIMEOUT_MS         (200)
+#define CMDQ_PREDUMP_RETRY_COUNT        (5)
+
+#ifdef CONFIG_OF
+#define CMDQ_OF_SUPPORT		/* enable device tree support */
+#else
+#undef  CMDQ_OF_SUPPORT
+#endif
+
+#ifndef CONFIG_MTK_FPGA
+#define CMDQ_PWR_AWARE		/* FPGA does not have ClkMgr */
+#else
+#undef CMDQ_PWR_AWARE
+#endif
+
+/* #define CMDQ_DUMP_GIC (0) */
+/* #define CMDQ_PROFILE_MMP (0) */
+
+#define CMDQ_DUMP_FIRSTERROR
+/* #define CMDQ_INSTRUCTION_COUNT */
+
+typedef enum CMDQ_HW_THREAD_PRIORITY_ENUM {
+	CMDQ_THR_PRIO_SUPERLOW = 0,	/* low priority monitor loop */
+
+	CMDQ_THR_PRIO_NORMAL = 1,	/* nomral priority */
+	CMDQ_THR_PRIO_DISPLAY_TRIGGER = 2,	/* trigger loop (enables display mutex) */
+
+	/* display ESD check (every 2 secs) */
+#ifdef CMDQ_SPECIAL_ESD_PRIORITY
+	CMDQ_THR_PRIO_DISPLAY_ESD = 3,
+#else
+	CMDQ_THR_PRIO_DISPLAY_ESD = 4,
+#endif
+
+	CMDQ_THR_PRIO_DISPLAY_CONFIG = 4,	/* display config (every frame) */
+
+	CMDQ_THR_PRIO_SUPERHIGH = 5,	/* High priority monitor loop */
+
+	CMDQ_THR_PRIO_MAX = 7,	/* maximum possible priority */
+} CMDQ_HW_THREAD_PRIORITY_ENUM;
 
 typedef enum CMDQ_SCENARIO_ENUM {
 	CMDQ_SCENARIO_JPEG_DEC = 0,
@@ -62,23 +167,62 @@ typedef enum CMDQ_SCENARIO_ENUM {
 	CMDQ_SCENARIO_HIGHP_TRIGGER_LOOP = 35,	/* for primary trigger loop enable pre-fetch usage */
 	CMDQ_SCENARIO_LOWP_TRIGGER_LOOP = 36,	/* for low priority monitor loop to polling bus status*/
 
+	CMDQ_SCENARIO_KERNEL_CONFIG_GENERAL = 37,
+
 	CMDQ_MAX_SCENARIO_COUNT	/* ALWAYS keep at the end */
 } CMDQ_SCENARIO_ENUM;
 
+typedef enum CMDQ_DATA_REGISTER_ENUM {
+	/* Value Reg, we use 32-bit */
+	/* Address Reg, we use 64-bit */
+	/* Note that R0-R15 and P0-P7 actullay share same memory */
+	/* and R1 cannot be used. */
+
+	CMDQ_DATA_REG_JPEG = 0x00,	/* R0 */
+	CMDQ_DATA_REG_JPEG_DST = 0x11,	/* P1 */
+
+	CMDQ_DATA_REG_PQ_COLOR = 0x04,	/* R4 */
+	CMDQ_DATA_REG_PQ_COLOR_DST = 0x13,	/* P3 */
+
+	CMDQ_DATA_REG_2D_SHARPNESS_0 = 0x05,	/* R5 */
+	CMDQ_DATA_REG_2D_SHARPNESS_0_DST = 0x14,	/* P4 */
+
+	CMDQ_DATA_REG_2D_SHARPNESS_1 = 0x0a,	/* R10 */
+	CMDQ_DATA_REG_2D_SHARPNESS_1_DST = 0x16,	/* P6 */
+
+	CMDQ_DATA_REG_DEBUG = 0x0b,	/* R11 */
+	CMDQ_DATA_REG_DEBUG_DST = 0x17,	/* P7 */
+
+	/* sentinel value for invalid register ID */
+	CMDQ_DATA_REG_INVALID = -1,
+} CMDQ_DATA_REGISTER_ENUM;
+
 /* CMDQ Events */
 #undef DECLARE_CMDQ_EVENT
-#ifdef CMDQ_DVENT_FROM_DTS
 #define DECLARE_CMDQ_EVENT(name_struct, val, dts_name) name_struct = val,
 typedef enum CMDQ_EVENT_ENUM {
 #include "cmdq_event_common.h"
 } CMDQ_EVENT_ENUM;
-#else
-#define DECLARE_CMDQ_EVENT(name_struct, val) name_struct = val,
-typedef enum CMDQ_EVENT_ENUM {
-#include "cmdq_event.h"
-} CMDQ_EVENT_ENUM;
-#endif
 #undef DECLARE_CMDQ_EVENT
+
+/* CMDQ subsys */
+#undef DECLARE_CMDQ_SUBSYS
+#define DECLARE_CMDQ_SUBSYS(name_struct, val, grp, dts_name) name_struct = val,
+typedef enum CMDQ_SUBSYS_ENUM {
+#include "cmdq_subsys.h"
+
+	/* ALWAYS keep at the end */
+	CMDQ_SUBSYS_MAX_COUNT
+} CMDQ_SUBSYS_ENUM;
+#undef DECLARE_CMDQ_SUBSYS
+
+/* GCE subsys information */
+typedef struct SubsysStruct {
+	uint32_t msb;
+	int32_t subsysID;
+	uint32_t mask;
+	const char *grpName;
+} SubsysStruct;
 
 /* Custom "wide" pointer type for 64-bit job handle (pointer to VA) */
 typedef unsigned long long cmdqJobHandle_t;
@@ -214,4 +358,4 @@ typedef struct {
 	uint32_t pc;
 } cmdqSecCancelTaskResultStruct;
 
-#endif				/* __CMDQ_DEF_COMMON_H__ */
+#endif				/* __CMDQ_DEF_H__ */

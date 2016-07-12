@@ -1,5 +1,5 @@
-#ifndef __CMDQ_CORE_COMMON_H__
-#define __CMDQ_CORE_COMMON_H__
+#ifndef __CMDQ_CORE_H__
+#define __CMDQ_CORE_H__
 
 #include <linux/list.h>
 #include <linux/time.h>
@@ -11,7 +11,76 @@
 #include <linux/sched.h>
 #include "cmdq_def.h"
 
+/*  */
+/* address conversion for 4GB ram support: */
+/* .address register: 32 bit */
+/* .physical address: 32 bit, or 64 bit for CONFIG_ARCH_DMA_ADDR_T_64BIT enabled */
+/*  */
+/* when 33 bit enabled(4GB ram), 0x_0_xxxx_xxxx and 0x_1_xxxx_xxxx access is same for CPU */
+/*  */
+/*  */
+/* 0x0            0x0_4000_0000        0x1_0000_0000        0x1_4000_0000 */
+/* |---1GB HW addr---|------3GB DRAM------|----1GB DRAM(new)----|-----3GB DRAM(same)------| */
+/* |                                               | */
+/* |<--------------4GB RAM support---------------->| */
+/*  */
+#define CMDQ_PHYS_TO_AREG(addr) ((addr) & 0xFFFFFFFF)	/* truncate directly */
+#define CMDQ_AREG_TO_PHYS(addr) ((addr) | 0L)
+
 #define CMDQ_LONGSTRING_MAX (512)
+#define CMDQ_DELAY_RELEASE_RESOURCE_MS (1000)
+
+#define CMDQ_ENG_ISP_GROUP_BITS                 ((1LL << CMDQ_ENG_ISP_IMGI) |       \
+						 (1LL << CMDQ_ENG_ISP_IMGO) |       \
+						 (1LL << CMDQ_ENG_ISP_IMG2O))
+
+#define CMDQ_ENG_MDP_GROUP_BITS                 ((1LL << CMDQ_ENG_MDP_CAMIN) |      \
+						 (1LL << CMDQ_ENG_MDP_RDMA0) |      \
+						 (1LL << CMDQ_ENG_MDP_RDMA1) |      \
+						 (1LL << CMDQ_ENG_MDP_RSZ0) |       \
+						 (1LL << CMDQ_ENG_MDP_RSZ1) |       \
+						 (1LL << CMDQ_ENG_MDP_RSZ2) |       \
+						 (1LL << CMDQ_ENG_MDP_TDSHP0) |     \
+						 (1LL << CMDQ_ENG_MDP_TDSHP1) |     \
+						 (1LL << CMDQ_ENG_MDP_COLOR0) |     \
+						 (1LL << CMDQ_ENG_MDP_WROT0) |      \
+						 (1LL << CMDQ_ENG_MDP_WROT1) |      \
+						 (1LL << CMDQ_ENG_MDP_WDMA))
+
+#define CMDQ_ENG_DISP_GROUP_BITS                ((1LL << CMDQ_ENG_DISP_UFOE) |      \
+						 (1LL << CMDQ_ENG_DISP_AAL) |       \
+						 (1LL << CMDQ_ENG_DISP_COLOR0) |    \
+						 (1LL << CMDQ_ENG_DISP_COLOR1) |    \
+						 (1LL << CMDQ_ENG_DISP_RDMA0) |     \
+						 (1LL << CMDQ_ENG_DISP_RDMA1) |     \
+						 (1LL << CMDQ_ENG_DISP_RDMA2) |     \
+						 (1LL << CMDQ_ENG_DISP_WDMA0) |     \
+						 (1LL << CMDQ_ENG_DISP_WDMA1) |     \
+						 (1LL << CMDQ_ENG_DISP_OVL0) |      \
+						 (1LL << CMDQ_ENG_DISP_OVL1) |      \
+						 (1LL << CMDQ_ENG_DISP_OVL2) |      \
+						 (1LL << CMDQ_ENG_DISP_2L_OVL0) |      \
+						 (1LL << CMDQ_ENG_DISP_2L_OVL1) |      \
+						 (1LL << CMDQ_ENG_DISP_2L_OVL2) |      \
+						 (1LL << CMDQ_ENG_DISP_GAMMA) |     \
+						 (1LL << CMDQ_ENG_DISP_MERGE) |     \
+						 (1LL << CMDQ_ENG_DISP_SPLIT0) |    \
+						 (1LL << CMDQ_ENG_DISP_SPLIT1) |    \
+						 (1LL << CMDQ_ENG_DISP_DSI0_VDO) |  \
+						 (1LL << CMDQ_ENG_DISP_DSI1_VDO) |  \
+						 (1LL << CMDQ_ENG_DISP_DSI0_CMD) |  \
+						 (1LL << CMDQ_ENG_DISP_DSI1_CMD) |  \
+						 (1LL << CMDQ_ENG_DISP_DSI0) |      \
+						 (1LL << CMDQ_ENG_DISP_DSI1) |      \
+						 (1LL << CMDQ_ENG_DISP_DPI))
+
+#define CMDQ_ENG_VENC_GROUP_BITS                ((1LL << CMDQ_ENG_VIDEO_ENC))
+
+#define CMDQ_ENG_JPEG_GROUP_BITS                ((1LL << CMDQ_ENG_JPEG_ENC) | \
+						 (1LL << CMDQ_ENG_JPEG_REMDC) | \
+						 (1LL << CMDQ_ENG_JPEG_DEC))
+
+#define CMDQ_ENG_DPE_GROUP_BITS					(CMDQ_ENG_DPE)
 
 #ifdef CMDQ_DUMP_FIRSTERROR
 #define CMDQ_MAX_FIRSTERROR	(32*1024)
@@ -137,8 +206,28 @@ do_div(_duration, 1000);				\
 duration = (int32_t)_duration;			\
 }
 
+#define CMDQ_ENG_ISP_GROUP_FLAG(flag)   ((flag) & (CMDQ_ENG_ISP_GROUP_BITS))
+
+#define CMDQ_ENG_MDP_GROUP_FLAG(flag)   ((flag) & (CMDQ_ENG_MDP_GROUP_BITS))
+
+#define CMDQ_ENG_DISP_GROUP_FLAG(flag)  ((flag) & (CMDQ_ENG_DISP_GROUP_BITS))
+
+#define CMDQ_ENG_JPEG_GROUP_FLAG(flag)  ((flag) & (CMDQ_ENG_JPEG_GROUP_BITS))
+
+#define CMDQ_ENG_VENC_GROUP_FLAG(flag)	((flag) & (CMDQ_ENG_VENC_GROUP_BITS))
+
+#define CMDQ_ENG_DPE_GROUP_FLAG(flag)	((flag) & (CMDQ_ENG_DPE_GROUP_BITS))
+
 #define GENERATE_ENUM(_enum, _string) _enum,
 #define GENERATE_STRING(_enum, _string) (#_string),
+
+#define CMDQ_FOREACH_GROUP(ACTION_struct)\
+ACTION_struct(CMDQ_GROUP_ISP, ISP)		\
+ACTION_struct(CMDQ_GROUP_MDP, MDP)		\
+ACTION_struct(CMDQ_GROUP_DISP, DISP)	\
+ACTION_struct(CMDQ_GROUP_JPEG, JPEG)	\
+ACTION_struct(CMDQ_GROUP_VENC, VENC)	\
+ACTION_struct(CMDQ_GROUP_DPE, DPE)
 
 typedef enum CMDQ_GROUP_ENUM {
 	CMDQ_FOREACH_GROUP(GENERATE_ENUM)
@@ -162,6 +251,12 @@ typedef int32_t(*CmdqInterruptCB) (unsigned long data);
 
 /* data are user data passed to APIs */
 typedef int32_t(*CmdqAsyncFlushCB) (unsigned long data);
+
+/* resource event can be indicated to resource unit */
+typedef int32_t(*CmdqResourceReleaseCB) (CMDQ_EVENT_ENUM resourceEvent);
+
+/* resource event can be indicated to resource unit */
+typedef int32_t(*CmdqResourceAvailableCB) (CMDQ_EVENT_ENUM resourceEvent);
 
 /* TaskID is passed down from IOCTL */
 /* client should fill "regCount" and "regAddress" */
@@ -450,6 +545,26 @@ typedef struct cmdqSecSharedMemoryStruct {
 	uint32_t size;		/* buffer size */
 } cmdqSecSharedMemoryStruct, *cmdqSecSharedMemoryHandle;
 
+/**
+ * resource unit between each module
+ */
+typedef struct ResourceUnitStruct {
+	struct list_head listEntry;
+	CMDQ_TIME notify;			/* notify time from module prepare */
+	CMDQ_TIME lock;			/* lock time from module lock */
+	CMDQ_TIME unlock;			/* unlock time from module unlock*/
+	CMDQ_TIME delay;			/* delay start time from module release*/
+	CMDQ_TIME acquire;		/* acquire time from module acquire */
+	CMDQ_TIME release;		/* release time from module release */
+	bool used;				/* indicate resource is in use or not */
+	bool delaying;			/* indicate resource is in delay check or not */
+	CMDQ_EVENT_ENUM lockEvent;	/* SW token to lock in GCE thread */
+	uint64_t engine;			/* which engine is resource */
+	CmdqResourceAvailableCB availableCB;
+	CmdqResourceReleaseCB releaseCB;
+	struct delayed_work delayCheckWork;	/* Delay Work item when delay check is used */
+} ResourceUnitStruct;
+
 typedef struct ContextStruct {
 	/* Task information */
 	struct kmem_cache *taskCache;	/* TaskStruct object cache */
@@ -459,6 +574,7 @@ typedef struct ContextStruct {
 	struct work_struct taskConsumeWaitQueueItem;
 	struct workqueue_struct *taskAutoReleaseWQ;	/* auto-release workqueue */
 	struct workqueue_struct *taskConsumeWQ;	/* task consumption workqueue (for queued tasks) */
+	struct workqueue_struct *resourceCheckWQ;	/* delay resource check workqueue */
 
 	/* Write Address management */
 	struct list_head writeAddrList;
@@ -481,6 +597,9 @@ typedef struct ContextStruct {
 	int32_t logLevel;
 	int32_t errNum;
 	ErrorStruct error[CMDQ_MAX_ERROR_COUNT];
+
+	/* Resource manager information */
+	struct list_head resourceList;	/* all resource list */
 
 #ifdef CMDQ_INSTRUCTION_COUNT
 	/* GCE instructions count information */
@@ -652,6 +771,7 @@ extern "C" {
  */
 	uint32_t cmdq_core_subsys_to_reg_addr(uint32_t argA);
 	const char *cmdq_core_parse_subsys_from_reg_addr(uint32_t reg_addr);
+	int32_t cmdq_core_subsys_from_phys_addr(uint32_t physAddr);
 	int32_t cmdq_core_suspend_HW_thread(int32_t thread, uint32_t lineNum);
 
 /**
@@ -662,13 +782,17 @@ extern "C" {
 /**
  * Get and set HW event form device tree
  */
-#ifdef CMDQ_DVENT_FROM_DTS
-	void cmdq_core_init_HW_event_table(void);
-	void cmdq_core_set_HW_event_table(CMDQ_EVENT_ENUM event, const int32_t value);
-#endif
+	void cmdq_core_init_event_table(void);
+	void cmdq_core_set_event_table(CMDQ_EVENT_ENUM event, const int32_t value);
 	int32_t *cmdq_core_get_whole_event_table(uint32_t *tableSize);
 	const int32_t cmdq_core_get_event_value(CMDQ_EVENT_ENUM event);
 	const char *cmdq_core_get_event_name(CMDQ_EVENT_ENUM event);
+
+/**
+ * GCE subsys
+ */
+	SubsysStruct *cmdq_core_get_whole_subsys_table(void);
+	void cmdq_core_init_subsys(void);
 
 /**
  * Utilities
@@ -700,7 +824,6 @@ extern "C" {
 
 	void cmdq_core_fix_command_scenario_for_user_space(cmdqCommandStruct *pCommand);
 	bool cmdq_core_is_request_from_user_space(const CMDQ_SCENARIO_ENUM scenario);
-	uint64_t cmdq_core_flag_from_scenario(CMDQ_SCENARIO_ENUM scn);
 
 	unsigned long long cmdq_core_get_GPR64(const CMDQ_DATA_REGISTER_ENUM regID);
 	void cmdq_core_set_GPR64(const CMDQ_DATA_REGISTER_ENUM regID,
@@ -787,7 +910,15 @@ extern "C" {
 					   int rowsize, int groupsize, const void *buf, size_t len);
 #endif				/* CMDQ_DUMP_FIRSTERROR */
 
+	void cmdqCoreLockResource(uint64_t engineFlag, bool fromNotify);
+	bool cmdqCoreAcquireResource(CMDQ_EVENT_ENUM resourceEvent);
+	void cmdqCoreReleaseResource(CMDQ_EVENT_ENUM resourceEvent);
+	void cmdqCoreSetResourceCallback(CMDQ_EVENT_ENUM resourceEvent,
+								CmdqResourceAvailableCB resourceAvailable,
+								CmdqResourceReleaseCB resourceRelease);
+
+
 #ifdef __cplusplus
 }
 #endif
-#endif				/* __CMDQ_CORE_COMMON_H__ */
+#endif				/* __CMDQ_CORE_H__ */

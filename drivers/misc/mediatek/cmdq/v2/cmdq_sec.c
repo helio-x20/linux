@@ -4,7 +4,6 @@
 #include "cmdq_def.h"
 #include "cmdq_virtual.h"
 #include "cmdq_device.h"
-#include "cmdq_platform.h"
 #ifdef CMDQ_MET_READY
 #include <linux/met_drv.h>
 #endif

@@ -6,7 +6,6 @@
 #include "cmdq_core.h"
 #include "cmdq_virtual.h"
 #include "cmdq_reg.h"
-#include "cmdq_platform.h"
 #include "cmdq_prof.h"
 
 #ifdef CMDQ_SECURE_PATH_SUPPORT
@@ -233,7 +232,7 @@ static int32_t cmdq_append_wpr_command(cmdqRecHandle handle, CMDQ_CODE_ENUM code
 
 	if (0 == argAType) {
 		/* argA is the HW register address to read from */
-		subsys = cmdq_get_func()->subsysPA(argA);
+		subsys = cmdq_core_subsys_from_phys_addr(argA);
 		if (CMDQ_SPECIAL_SUBSYS_ADDR == subsys) {
 #ifdef CMDQ_GPR_SUPPORT
 			bUseGPR = true;
@@ -411,6 +410,17 @@ int32_t cmdq_append_command(cmdqRecHandle handle, CMDQ_CODE_ENUM code,
 	}
 
 	handle->blockSize += CMDQ_INST_SIZE;
+	return 0;
+}
+
+int32_t cmdqRecSetEngine(cmdqRecHandle handle, uint64_t engineFlag)
+{
+	if (NULL == handle)
+		return -EFAULT;
+
+	CMDQ_VERBOSE("REC: %p, engineFlag: 0x%llx\n", handle, engineFlag);
+	handle->engineFlag = engineFlag;
+
 	return 0;
 }
 
@@ -1468,3 +1478,50 @@ int32_t cmdqRecQueryOffset(cmdqRecHandle handle, uint32_t startIndex, const CMDQ
 
 	return Offset;
 }
+
+int32_t cmdqRecAcquireResource(cmdqRecHandle handle, CMDQ_EVENT_ENUM resourceEvent)
+{
+	bool acquireResult;
+
+	acquireResult = cmdqCoreAcquireResource(resourceEvent);
+	if (!acquireResult) {
+		CMDQ_LOG("Acquire resource (event:%d) failed, handle:0x%p", resourceEvent, handle);
+		return -EFAULT;
+	}
+	return 0;
+}
+
+int32_t cmdqRecWriteForResource(cmdqRecHandle handle, CMDQ_EVENT_ENUM resourceEvent,
+							uint32_t addr, uint32_t value, uint32_t mask)
+{
+	bool acquireResult;
+
+	acquireResult = cmdqCoreAcquireResource(resourceEvent);
+	if (!acquireResult) {
+		CMDQ_LOG("Acquire resource (event:%d) failed, handle:0x%p", resourceEvent, handle);
+		return -EFAULT;
+	}
+
+	return cmdqRecWrite(handle, addr, value, mask);
+}
+
+int32_t cmdqRecReleaseResource(cmdqRecHandle handle, CMDQ_EVENT_ENUM resourceEvent)
+{
+	cmdqCoreReleaseResource(resourceEvent);
+	return cmdqRecSetEventToken(handle, resourceEvent);
+}
+
+int32_t cmdqRecWriteAndReleaseResource(cmdqRecHandle handle, CMDQ_EVENT_ENUM resourceEvent,
+							uint32_t addr, uint32_t value, uint32_t mask)
+{
+	int32_t result;
+
+	cmdqCoreReleaseResource(resourceEvent);
+	result = cmdqRecWrite(handle, addr, value, mask);
+	if (result >= 0)
+		return cmdqRecSetEventToken(handle, resourceEvent);
+
+	CMDQ_ERR("Write instruction fail and not release resource!\n");
+	return result;
+}
+

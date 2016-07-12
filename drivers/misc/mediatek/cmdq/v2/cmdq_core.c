@@ -3,7 +3,6 @@
 #include "cmdq_reg.h"
 #include "cmdq_struct.h"
 #include "cmdq_device.h"
-#include "cmdq_platform.h"
 #include "cmdq_record.h"
 #include "cmdq_sec.h"
 #ifdef CMDQ_PROFILE_MMP
@@ -42,8 +41,8 @@
 #endif
 
 /* #define CMDQ_PROFILE_COMMAND_TRIGGER_LOOP */
-/*#define CMDQ_APPEND_WITHOUT_SUSPEND*/
-/*#define CMDQ_ENABLE_BUS_ULTRA*/
+/* #define CMDQ_APPEND_WITHOUT_SUSPEND */
+/* #define CMDQ_ENABLE_BUS_ULTRA */
 
 #define CMDQ_GET_COOKIE_CNT(thread) (CMDQ_REG_GET32(CMDQ_THR_EXEC_CNT(thread)) & CMDQ_MAX_COOKIE_VALUE)
 #define CMDQ_SYNC_TOKEN_APPEND_THR(id)     (CMDQ_SYNC_TOKEN_APPEND_THR0 + id)
@@ -73,6 +72,7 @@ static atomic_t gSMIThreadUsage;
 static bool gCmdqSuspended;
 static DEFINE_SPINLOCK(gCmdqExecLock);
 static DEFINE_SPINLOCK(gCmdqRecordLock);
+static DEFINE_MUTEX(gCmdqResourceMutex);
 
 /* Emergency buffer when fail to allocate memory. */
 static DEFINE_SPINLOCK(gCmdqAllocLock);
@@ -99,82 +99,185 @@ static DumpCommandBufferStruct gCmdqBufferDump;
 static atomic_t gCmdqDebugForceUseEmergencyBuffer = ATOMIC_INIT(0);
 #endif
 
-static const uint64_t gCmdqEngineGroupBits[CMDQ_MAX_GROUP_COUNT] = { CMDQ_ENG_ISP_GROUP_BITS,
+/* use to generate [CMDQ_ENGINE_ENUM_id and name] mapping for status print */
+#define CMDQ_FOREACH_MODULE_PRINT(ACTION)\
+{		\
+ACTION(CMDQ_ENG_ISP_IMGI,   ISP_IMGI)	\
+ACTION(CMDQ_ENG_MDP_RDMA0,  MDP_RDMA0)	\
+ACTION(CMDQ_ENG_MDP_RDMA1,  MDP_RDMA1)	\
+ACTION(CMDQ_ENG_MDP_RSZ0,   MDP_RSZ0)	\
+ACTION(CMDQ_ENG_MDP_RSZ1,   MDP_RSZ1)	\
+ACTION(CMDQ_ENG_MDP_RSZ2,   MDP_RSZ2)	\
+ACTION(CMDQ_ENG_MDP_TDSHP0, MDP_TDSHP0)	\
+ACTION(CMDQ_ENG_MDP_TDSHP1, MDP_TDSHP1)	\
+ACTION(CMDQ_ENG_MDP_COLOR0, MDP_COLOR0) \
+ACTION(CMDQ_ENG_MDP_WROT0,  MDP_WROT0)	\
+ACTION(CMDQ_ENG_MDP_WROT1,  MDP_WROT1)	\
+ACTION(CMDQ_ENG_MDP_WDMA,   MDP_WDMA)	\
+}
+
+static const uint64_t gCmdqEngineGroupBits[CMDQ_MAX_GROUP_COUNT] = {
+	CMDQ_ENG_ISP_GROUP_BITS,
 	CMDQ_ENG_MDP_GROUP_BITS,
 	CMDQ_ENG_DISP_GROUP_BITS,
 	CMDQ_ENG_JPEG_GROUP_BITS,
-	CMDQ_ENG_VENC_GROUP_BITS
+	CMDQ_ENG_VENC_GROUP_BITS,
+	CMDQ_ENG_DPE_GROUP_BITS
 };
 
-#ifdef CMDQ_DVENT_FROM_DTS
-static int32_t gCmdqEventTable[CMDQ_MAX_HW_EVENT_COUNT];
+static SubsysStruct gCmdqSubsys[CMDQ_SUBSYS_MAX_COUNT];
+static int32_t gCmdqEventTable[CMDQ_SYNC_TOKEN_MAX];
 
-void cmdq_core_init_HW_event_table(void)
+void cmdq_core_init_subsys(void)
+{
+	memset(&(gCmdqSubsys), 0x0, sizeof(gCmdqSubsys));
+}
+
+SubsysStruct *cmdq_core_get_whole_subsys_table(void)
+{
+	return gCmdqSubsys;
+}
+
+/* Use CMDQ as Resource Manager */
+void cmdq_core_unlock_resource(struct work_struct *workItem)
+{
+	struct ResourceUnitStruct *pResource = NULL;
+	struct delayed_work *delayedWorkItem = NULL;
+	int32_t status = 0;
+
+	delayedWorkItem = container_of(workItem, struct delayed_work, work);
+	pResource = container_of(delayedWorkItem, struct ResourceUnitStruct, delayCheckWork);
+
+	mutex_lock(&gCmdqResourceMutex);
+
+	CMDQ_MSG("[Res] unlock resource with engine: 0x%016llx\n", pResource->engine);
+	if (pResource->used) {
+		pResource->used = false;
+		pResource->delaying = false;
+		/* delay time is reached and unlock resource */
+		if (NULL == pResource->availableCB) {
+			/* print error message */
+			CMDQ_ERR("[Res]: available CB func is NULL, event:%d\n", pResource->lockEvent);
+		} else {
+			/* before call callback, release lock at first */
+			mutex_unlock(&gCmdqResourceMutex);
+			status =
+				pResource->availableCB(pResource->lockEvent);
+			mutex_lock(&gCmdqResourceMutex);
+
+			if (status < 0) {
+				/* Error status print */
+				CMDQ_ERR("[Res]: available CB (%d) return fail:%d\n",
+							pResource->lockEvent, status);
+			}
+		}
+	}
+	mutex_unlock(&gCmdqResourceMutex);
+}
+
+void cmdq_core_init_resource(uint64_t engineFlag, CMDQ_EVENT_ENUM resourceEvent)
+{
+	struct ResourceUnitStruct *pResource;
+
+	pResource = kzalloc(sizeof(ResourceUnitStruct), GFP_KERNEL);
+	if (pResource) {
+		pResource->engine = engineFlag;
+		pResource->lockEvent = resourceEvent;
+		INIT_DELAYED_WORK(&pResource->delayCheckWork, cmdq_core_unlock_resource);
+		INIT_LIST_HEAD(&(pResource->listEntry));
+		list_add_tail(&(pResource->listEntry), &gCmdqContext.resourceList);
+	}
+}
+
+/* engineFlag: task original engineFlag */
+/* enginesNotUsed: flag which indicate Not Used engine after release task */
+void cmdq_core_delay_check_unlock(uint64_t engineFlag, const uint64_t enginesNotUsed)
+{
+	/* Check engine in enginesNotUsed */
+	struct ResourceUnitStruct *pResource = NULL;
+	struct list_head *p = NULL;
+
+	CMDQ_MSG("[Res] delay check with engine: 0x%016llx\n", enginesNotUsed);
+	list_for_each(p, &gCmdqContext.resourceList) {
+		pResource = list_entry(p, struct ResourceUnitStruct, listEntry);
+		if (enginesNotUsed & pResource->engine) {
+			mutex_lock(&gCmdqResourceMutex);
+			CMDQ_MSG("[Res] start delay check resource with engine: 0x%016llx\n", pResource->engine);
+			/* find matched engine become not used*/
+			pResource->delay = sched_clock();
+
+			if (!pResource->used) {
+				/* resource is not used but we got engine is released! */
+				/* log as error and still continue */
+				CMDQ_ERR("[Res]: resource will delay but not used, engine: 0x%016llx\n",
+					pResource->engine);
+			}
+
+			/* Cancel previous delay task if existed */
+			if (pResource->delaying) {
+				cancel_delayed_work(&pResource->delayCheckWork);
+				CMDQ_MSG("[Res] after cancel delay check resource with engine: 0x%016llx\n",
+					pResource->engine);
+			}
+
+			/* Start a new delay task */
+			queue_delayed_work(gCmdqContext.resourceCheckWQ,
+				&pResource->delayCheckWork, CMDQ_DELAY_RELEASE_RESOURCE_MS);
+			pResource->delaying = true;
+			mutex_unlock(&gCmdqResourceMutex);
+		}
+	}
+}
+
+void cmdq_core_init_event_table(void)
 {
 	uint32_t i;
 
-	for (i = 0; i < CMDQ_MAX_HW_EVENT_COUNT; i++)
-		gCmdqEventTable[i] = CMDQ_SYNC_TOKEN_INVALID - 1 - i;
+	for (i = 0; i < CMDQ_SYNC_TOKEN_MAX; i++) {
+		if (i <= CMDQ_MAX_HW_EVENT_COUNT) {
+			/* GCE HW evevt */
+			gCmdqEventTable[i] = CMDQ_SYNC_TOKEN_INVALID - 1 - i;
+		} else {
+			/* GCE SW evevt */
+			gCmdqEventTable[i] = i;
+		}
+	}
 }
 
-void cmdq_core_set_HW_event_table(CMDQ_EVENT_ENUM event, const int32_t value)
+void cmdq_core_set_event_table(CMDQ_EVENT_ENUM event, const int32_t value)
 {
-	if (event >= 0 && event < CMDQ_MAX_HW_EVENT_COUNT)
+	if (event >= 0 && event < CMDQ_SYNC_TOKEN_MAX)
 		gCmdqEventTable[event] = value;
 }
-#endif
 
 int32_t *cmdq_core_get_whole_event_table(uint32_t *tableSize)
 {
-#ifdef CMDQ_DVENT_FROM_DTS
 	*tableSize = sizeof(gCmdqEventTable);
 
 	return gCmdqEventTable;
-#else
-	*tableSize = 0;
-	return NULL;
-#endif
 }
 
 const int32_t cmdq_core_get_event_value(CMDQ_EVENT_ENUM event)
 {
-	int32_t eventValue;
-
 	if (event < 0 || event >= CMDQ_SYNC_TOKEN_MAX)
 		return -EINVAL;
 
-#ifdef CMDQ_DVENT_FROM_DTS
-	if (event < CMDQ_MAX_HW_EVENT_COUNT)
-		eventValue = gCmdqEventTable[event];	/* HW event */
-	else
-		eventValue = (int32_t) event;	/* SW token */
-#else
-	eventValue = (int32_t) event;
-#endif
-	return eventValue;
+	return gCmdqEventTable[event];
 }
 
 const int32_t cmdq_core_reverse_event_ENUM(const uint32_t value)
 {
-#ifdef CMDQ_DVENT_FROM_DTS
 	uint32_t eventENUM = CMDQ_SYNC_TOKEN_INVALID;
 	uint32_t i;
 
-	if (value < CMDQ_MAX_HW_EVENT_COUNT) {
-		for (i = 0; i < CMDQ_MAX_HW_EVENT_COUNT; i++) {
-			if (value == gCmdqEventTable[i]) {
-				eventENUM = i;
-				break;
-			}
+	for (i = 0; i < CMDQ_SYNC_TOKEN_MAX; i++) {
+		if (value == gCmdqEventTable[i]) {
+			eventENUM = i;
+			break;
 		}
-	} else {
-		eventENUM = value;
 	}
 
 	return eventENUM;
-#else
-	return value;
-#endif
 }
 
 void *cmdq_core_alloc_hw_buffer(struct device *dev, size_t size, dma_addr_t *dma_handle,
@@ -520,17 +623,10 @@ const char *cmdq_core_get_event_name(CMDQ_EVENT_ENUM event)
 	const int32_t eventENUM = cmdq_core_reverse_event_ENUM(event);
 
 #undef DECLARE_CMDQ_EVENT
-#ifdef CMDQ_DVENT_FROM_DTS
 #define DECLARE_CMDQ_EVENT(name, val, dts_name)	{ if (val == eventENUM) { eventName = #name; break; }  }
 	do {
 #include "cmdq_event_common.h"
 	} while (0);
-#else
-#define DECLARE_CMDQ_EVENT(name, val) { if (val == eventENUM) { eventName = #name; break; }  }
-	do {
-#include "cmdq_event.h"
-	} while (0);
-#endif
 #undef DECLARE_CMDQ_EVENT
 
 	return eventName;
@@ -554,6 +650,15 @@ uint32_t cmdqCoreGetEvent(CMDQ_EVENT_ENUM event)
 	CMDQ_REG_SET32(CMDQ_SYNC_TOKEN_ID, (0x3FF && event));
 	regValue = CMDQ_REG_GET32(CMDQ_SYNC_TOKEN_VAL);
 	return regValue;
+}
+
+const bool cmdq_core_support_sync_non_suspendable(void)
+{
+#ifdef CMDQ_USE_LEGACY
+	return false;
+#else
+	return true;
+#endif
 }
 
 ssize_t cmdqCorePrintLogLevel(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1384,7 +1489,7 @@ void cmdq_core_reset_hw_events(void)
 	/* set all defined events to 0 */
 	CMDQ_MSG("cmdq_core_reset_hw_events\n");
 
-#ifdef CMDQ_DVENT_FROM_DTS
+
 #undef DECLARE_CMDQ_EVENT
 #define DECLARE_CMDQ_EVENT(name, val, dts_name) \
 {	\
@@ -1392,15 +1497,6 @@ void cmdq_core_reset_hw_events(void)
 }
 #include "cmdq_event_common.h"
 #undef DECLARE_CMDQ_EVENT
-#else
-#undef DECLARE_CMDQ_EVENT
-#define DECLARE_CMDQ_EVENT(name, val) \
-{	\
-	cmdq_core_reset_hw_events_impl(name);	\
-}
-#include "cmdq_event.h"
-#undef DECLARE_CMDQ_EVENT
-#endif
 
 	/* However, GRP_SET are resource flags, */
 	/* by default they should be 1. */
@@ -1409,6 +1505,10 @@ void cmdq_core_reset_hw_events(void)
 	cmdqCoreSetEvent(CMDQ_SYNC_TOKEN_GPR_SET_2);
 	cmdqCoreSetEvent(CMDQ_SYNC_TOKEN_GPR_SET_3);
 	cmdqCoreSetEvent(CMDQ_SYNC_TOKEN_GPR_SET_4);
+
+	/* However, CMDQ_SYNC_RESOURCE are resource flags, */
+	/* by default they should be 1. */
+	cmdqCoreSetEvent(CMDQ_SYNC_RESOURCE_WROT0);
 
 	/* However, APPEND_THR are resource flags, */
 	/* by default they should be 1. */
@@ -1733,78 +1833,6 @@ bool cmdq_core_is_request_from_user_space(const CMDQ_SCENARIO_ENUM scenario)
 	return false;
 }
 
-uint64_t cmdq_core_flag_from_scenario(CMDQ_SCENARIO_ENUM scn)
-{
-	uint64_t flag = 0;
-
-	switch (scn) {
-	case CMDQ_SCENARIO_DISP_CONFIG_AAL:
-	case CMDQ_SCENARIO_DISP_CONFIG_PRIMARY_GAMMA:
-	case CMDQ_SCENARIO_DISP_CONFIG_PRIMARY_DITHER:
-	case CMDQ_SCENARIO_DISP_CONFIG_PRIMARY_PWM:
-	case CMDQ_SCENARIO_DISP_CONFIG_PRIMARY_PQ:
-	case CMDQ_SCENARIO_DISP_CONFIG_SUB_GAMMA:
-	case CMDQ_SCENARIO_DISP_CONFIG_SUB_DITHER:
-	case CMDQ_SCENARIO_DISP_CONFIG_SUB_PWM:
-	case CMDQ_SCENARIO_DISP_CONFIG_SUB_PQ:
-	case CMDQ_SCENARIO_DISP_CONFIG_OD:
-		flag = 0LL;
-		break;
-	case CMDQ_SCENARIO_TRIGGER_LOOP:
-	case CMDQ_SCENARIO_HIGHP_TRIGGER_LOOP:
-	case CMDQ_SCENARIO_LOWP_TRIGGER_LOOP:
-		/* Trigger loop does not related to any HW by itself. */
-		flag = 0LL;
-		break;
-
-	case CMDQ_SCENARIO_USER_SPACE:
-		/* user space case, engine flag is passed seprately */
-		flag = 0LL;
-		break;
-
-	case CMDQ_SCENARIO_DEBUG:
-	case CMDQ_SCENARIO_DEBUG_PREFETCH:
-		flag = 0LL;
-		break;
-
-	case CMDQ_SCENARIO_DISP_ESD_CHECK:
-	case CMDQ_SCENARIO_DISP_SCREEN_CAPTURE:
-		/* ESD check uses separate thread (not config, not trigger) */
-		flag = 0LL;
-		break;
-
-	case CMDQ_SCENARIO_DISP_COLOR:
-	case CMDQ_SCENARIO_USER_DISP_COLOR:
-		/* color path */
-		flag = 0LL;
-		break;
-
-	case CMDQ_SCENARIO_DISP_MIRROR_MODE:
-		flag = 0LL;
-		break;
-
-	case CMDQ_SCENARIO_DISP_PRIMARY_DISABLE_SECURE_PATH:
-	case CMDQ_SCENARIO_DISP_SUB_DISABLE_SECURE_PATH:
-		/* secure path */
-		flag = 0LL;
-		break;
-
-	case CMDQ_SCENARIO_SECURE_NOTIFY_LOOP:
-		flag = 0LL;
-		break;
-
-	default:
-		if (scn < 0 || scn >= CMDQ_MAX_SCENARIO_COUNT) {
-			/* Error status print */
-			CMDQ_ERR("Unknown scenario type %d\n", scn);
-		}
-		flag = 0LL;
-		break;
-	}
-
-	return flag;
-}
-
 static void cmdq_core_append_command(TaskStruct *pTask, uint32_t argA, uint32_t argB)
 {
 	pTask->pCMDEnd[1] = argB;
@@ -1874,7 +1902,7 @@ static void cmdq_core_insert_backup_instr(TaskStruct *pTask,
 	/* note that we force convert to physical reg address. */
 	/* if it is already physical address, it won't be affected (at least on this platform) */
 	argA = regAddr;
-	subsysCode = cmdq_get_func()->subsysPA(argA);
+	subsysCode = cmdq_core_subsys_from_phys_addr(argA);
 
 	/* CMDQ_ERR("test %d\n", __LINE__); */
 	/*  */
@@ -1948,7 +1976,7 @@ static int32_t cmdq_core_insert_backup_cookie_instr(TaskStruct *pTask, int32_t t
 	uint64_t addrOffset = CMDQ_SEC_SHARED_THR_CNT_OFFSET + thread * sizeof(uint32_t);
 	uint64_t WSMAddr = gCmdqContext.hSecSharedMem->MVABase + addrOffset;
 	const uint32_t subsysBit = cmdq_get_func()->getSubsysLSBArgA();
-	int32_t subsysCode = cmdq_get_func()->subsysPA(regAddr);
+	int32_t subsysCode = cmdq_core_subsys_from_phys_addr(regAddr);
 	int32_t offset;
 
 	/* Shift JUMP and EOC */
@@ -2226,7 +2254,7 @@ static int32_t cmdq_core_insert_read_reg_command(TaskStruct *pTask,
 		/* Add move instruction count for handle Extra APB address (add move instructions) */
 		for (i = 0; i < pTask->regCount; ++i) {
 			physAddr = CMDQ_U32_PTR(pCommandDesc->regRequest.regAddresses)[i];
-			subsysCode = cmdq_get_func()->subsysPA(physAddr);
+			subsysCode = cmdq_core_subsys_from_phys_addr(physAddr);
 			if (CMDQ_SPECIAL_SUBSYS_ADDR == subsysCode)
 				extraBufferSize += CMDQ_INST_SIZE;
 		}
@@ -3010,8 +3038,10 @@ static int32_t cmdq_core_acquire_thread(uint64_t engineFlag,
 		spin_unlock_irqrestore(&gCmdqThreadLock, flags);
 
 		/* enable clock */
-		if (CMDQ_INVALID_THREAD != thread)
+		if (CMDQ_INVALID_THREAD != thread) {
+			cmdqCoreLockResource(engineFlag, false);
 			cmdq_core_enable_clock(engineFlag, thread, engineMustEnableClock, scenario);
+		}
 
 		mutex_unlock(&gCmdqClockMutex);
 	} while (0);
@@ -3150,6 +3180,8 @@ static void cmdq_core_release_thread(TaskStruct *pTask)
 
 	/* clock off */
 	cmdq_core_disable_clock(engineFlag, engineNotUsed, pTask->scenario);
+	/* Delay release resource  */
+	cmdq_core_delay_check_unlock(engineFlag, engineNotUsed);
 
 	mutex_unlock(&gCmdqClockMutex);
 }
@@ -3277,29 +3309,60 @@ uint32_t cmdq_core_subsys_to_reg_addr(uint32_t argA)
 	const int32_t subsys_id = (argA & CMDQ_ARG_A_SUBSYS_MASK) >> subsysBit;
 	const uint32_t offset = (argA & 0xFFFF);
 	uint32_t base_addr = 0;
+	uint32_t i;
 
-#undef DECLARE_CMDQ_SUBSYS
-#define DECLARE_CMDQ_SUBSYS(addr, id, grp, base) { if (id == subsys_id) {base_addr = addr; break; } }
-	do {
-#include "cmdq_subsys.h"
-	} while (0);
-#undef DECLARE_CMDQ_SUBSYS
+	for (i = 0; i < CMDQ_SUBSYS_MAX_COUNT; i++) {
+		if (gCmdqSubsys[i].subsysID == subsys_id) {
+			base_addr = gCmdqSubsys[i].msb;
+			break;
+		}
+	}
 
 	return (base_addr << subsysBit) | offset;
 }
 
 const char *cmdq_core_parse_subsys_from_reg_addr(uint32_t reg_addr)
 {
-	const uint32_t addr_base_shifted = (reg_addr & 0xFFFF0000) >> 16;
+	uint32_t addr_base_shifted;
 	const char *module = "CMDQ";
+	uint32_t i;
 
-#undef DECLARE_CMDQ_SUBSYS
-#define DECLARE_CMDQ_SUBSYS(msb, id, grp, base) { if (msb == addr_base_shifted) {module = #grp; break; } }
-	do {
-#include "cmdq_subsys.h"
-	} while (0);
-#undef DECLARE_CMDQ_SUBSYS
+	for (i = 0; i < CMDQ_SUBSYS_MAX_COUNT; i++) {
+		if (-1 == gCmdqSubsys[i].subsysID)
+			continue;
+
+		addr_base_shifted = (reg_addr & gCmdqSubsys[i].mask);
+		if (gCmdqSubsys[i].msb == addr_base_shifted) {
+			module = gCmdqSubsys[i].grpName;
+			break;
+		}
+	}
+
 	return module;
+}
+
+int32_t cmdq_core_subsys_from_phys_addr(uint32_t physAddr)
+{
+	int32_t msb;
+	int32_t subsysID = -1;
+	uint32_t i;
+
+	for (i = 0; i < CMDQ_SUBSYS_MAX_COUNT; i++) {
+		if (-1 == gCmdqSubsys[i].subsysID)
+			continue;
+
+		msb = (physAddr & gCmdqSubsys[i].mask);
+		if (msb == gCmdqSubsys[i].msb) {
+			subsysID = gCmdqSubsys[i].subsysID;
+			break;
+		}
+	}
+
+	if (-1 == subsysID) {
+		/* printf error message */
+		CMDQ_ERR("unrecognized subsys, physAddr:0x%08x\n", physAddr);
+	}
+	return subsysID;
 }
 
 static const char *cmdq_core_parse_op(uint32_t opCode)
@@ -3704,9 +3767,10 @@ int32_t cmdq_core_interpret_instruction(char *textBuf, int bufLen,
 			textBuf += reqLen;
 		} else {
 			const uint32_t addr = cmdq_core_subsys_to_reg_addr(argA);
+			const uint32_t addrMask = 0xFFFFFFFE;
 
 			reqLen = snprintf(textBuf, bufLen, "addr=0x%08x [%s], use_mask=%d\n",
-					  (addr & 0xFFFFFFFE),
+					  (addr & addrMask),
 					  cmdq_get_func()->parseModule(addr), (addr & 0x1));
 			bufLen -= reqLen;
 			textBuf += reqLen;
@@ -3765,7 +3829,7 @@ int32_t cmdq_core_interpret_instruction(char *textBuf, int bufLen,
 		if (argA == 0 && argB == 0x00000001) {
 			reqLen = snprintf(textBuf, bufLen, "EOC\n");
 		} else {
-			if (cmdq_get_func()->syncNonSuspendable()) {
+			if (cmdq_core_support_sync_non_suspendable()) {
 				reqLen = snprintf(textBuf, bufLen,
 						  "MARKER: sync_no_suspnd=%d",
 						  (argA & (1 << 20)) > 0);
@@ -4169,7 +4233,7 @@ static void cmdq_core_fill_task_instruction_stat(RecordStruct *pRecord, const Ta
 		case CMDQ_CODE_MOVE:
 			if (1 & (pCommand[1] >> 23)) {
 				if (CMDQ_SPECIAL_SUBSYS_ADDR ==
-				    cmdq_get_func()->subsysPA(pCommand[0])) {
+				    cmdq_core_subsys_from_phys_addr(pCommand[0])) {
 					commandIndex += CMDQ_INST_SIZE;
 					pRecord->instructionStat[CMDQ_STAT_WRITE]++;
 					pRecord->writeModule[CMDQ_MODULE_STAT_DISP_PWM]++;
@@ -4604,7 +4668,7 @@ static void cmdq_core_dump_error_task(const TaskStruct *pTask, const TaskStruct 
 	/* Dump MMSYS configuration */
 	/*      */
 	CMDQ_ERR("=============== [CMDQ] MMSYS_CONFIG ===============\n");
-	cmdq_get_func()->dumpMMSYSConfig();
+	cmdq_mdp_get_func()->dumpMMSYSConfig();
 
 	/*      */
 	/* ask each module to print their status */
@@ -4878,6 +4942,9 @@ static void cmdq_core_handle_done_with_cookie_impl(int32_t thread,
 						   int32_t value, CMDQ_TIME *pGotIRQ,
 						   const uint32_t cookie)
 {
+#ifdef CMDQ_MDP_MET_STATUS
+	struct TaskStruct *pTask;
+#endif
 	ThreadStruct *pThread;
 	int32_t count;
 	int32_t inner;
@@ -4916,6 +4983,11 @@ static void cmdq_core_handle_done_with_cookie_impl(int32_t thread,
 			pTask->irqFlag = value;
 			cmdq_core_remove_task_from_thread_array_by_cookie(pThread,
 									  inner, TASK_STATE_DONE);
+#ifdef CMDQ_MDP_MET_STATUS
+			/* MET MMSYS: Thread done */
+			if (met_mmsys_event_gce_thread_end)
+				met_mmsys_event_gce_thread_end(thread, (uintptr_t) pTask, pTask->engineFlag);
+#endif
 		}
 	}
 
@@ -4924,7 +4996,23 @@ static void cmdq_core_handle_done_with_cookie_impl(int32_t thread,
 	pThread->waitCookie = cookie + 1;
 	if (pThread->waitCookie > CMDQ_MAX_COOKIE_VALUE)
 		pThread->waitCookie -= (CMDQ_MAX_COOKIE_VALUE + 1);	/* min cookie value is 0 */
+#ifdef CMDQ_MDP_MET_STATUS
+	/* MET MMSYS: GCE should trigger next waiting task */
+	if ((0 < pThread->taskCount) && met_mmsys_event_gce_thread_begin) {
+		count = pThread->nextCookie - pThread->waitCookie;
+		for (inner = (pThread->waitCookie % CMDQ_MAX_TASK_IN_THREAD); count > 0; count--, inner++) {
+			if (inner >= CMDQ_MAX_TASK_IN_THREAD)
+				inner = 0;
 
+			if (NULL != pThread->pCurTask[inner]) {
+				pTask = pThread->pCurTask[inner];
+				met_mmsys_event_gce_thread_begin(thread, (uintptr_t) pTask, pTask->engineFlag,
+					(void *)pTask->pVABase, pTask->commandSize);
+				break;
+			}
+		}
+	}
+#endif
 	wake_up(&gCmdWaitQueue[thread]);
 }
 
@@ -6019,6 +6107,12 @@ static int32_t cmdq_core_exec_task_async_impl(TaskStruct *pTask, int32_t thread)
 			      MMProfileFlagPulse, thread, pThread->nextCookie - 1);
 
 		CMDQ_REG_SET32(CMDQ_THR_ENABLE_TASK(thread), 0x01);
+#ifdef CMDQ_MDP_MET_STATUS
+		/* MET MMSYS : Primary Trigger start */
+		if (met_mmsys_event_gce_thread_begin)
+			met_mmsys_event_gce_thread_begin(thread, (uintptr_t) pTask, pTask->engineFlag,
+				(void *)pTask->pVABase, pTask->commandSize);
+#endif
 	} else {
 		CMDQ_MSG("EXEC: reuse HW thread(%d), taskCount:%d\n", thread, pThread->taskCount);
 
@@ -6455,9 +6549,8 @@ static int32_t cmdq_core_consume_waiting_list(struct work_struct *_ignore)
 		thread = cmdq_core_acquire_thread(pTask->engineFlag,
 						  thread_prio, pTask->scenario, needLog,
 						  pTask->secData.isSecure);
-		pThread = &gCmdqContext.thread[thread];
 
-		if (CMDQ_INVALID_THREAD == thread || NULL == pThread) {
+		if (CMDQ_INVALID_THREAD == thread) {
 			/* have to wait, remain in wait list */
 			CMDQ_MSG("<--THREAD: acquire thread fail, need to wait\n");
 			if (needLog) {
@@ -6482,6 +6575,8 @@ static int32_t cmdq_core_consume_waiting_list(struct work_struct *_ignore)
 			}
 			continue;
 		}
+
+		pThread = &gCmdqContext.thread[thread];
 
 		/* some task is ready to run */
 		threadAcquired = true;
@@ -6978,6 +7073,7 @@ int32_t cmdqCoreInitialize(void)
 	INIT_LIST_HEAD(&gCmdqContext.taskFreeList);
 	INIT_LIST_HEAD(&gCmdqContext.taskActiveList);
 	INIT_LIST_HEAD(&gCmdqContext.taskWaitList);
+	INIT_LIST_HEAD(&gCmdqContext.resourceList);
 	INIT_WORK(&gCmdqContext.taskConsumeWaitQueueItem, cmdqCoreConsumeWaitQueueItem);
 
 	/* Initialize writable address */
@@ -6988,6 +7084,7 @@ int32_t cmdqCoreInitialize(void)
 
 	gCmdqContext.taskAutoReleaseWQ = create_singlethread_workqueue("cmdq_auto_release");
 	gCmdqContext.taskConsumeWQ = create_singlethread_workqueue("cmdq_task");
+	gCmdqContext.resourceCheckWQ = create_singlethread_workqueue("cmdq_resource");
 
 	/* Initialize command buffer dump */
 	memset(&gCmdqBufferDump, 0x0, sizeof(DumpCommandBufferStruct));
@@ -7033,6 +7130,8 @@ int32_t cmdqCoreInitialize(void)
 	cmdqSecInitialize();
 	/* Initialize test case structure */
 	cmdq_test_init_setting();
+	/* Initialize Resource TODO: via device tree */
+	cmdq_core_init_resource((1LL << CMDQ_ENG_MDP_WROT0), CMDQ_SYNC_RESOURCE_WROT0);
 
 	return 0;
 }
@@ -7068,6 +7167,9 @@ void cmdqCoreDeInitialize(void)
 
 	destroy_workqueue(gCmdqContext.taskConsumeWQ);
 	gCmdqContext.taskConsumeWQ = NULL;
+
+	destroy_workqueue(gCmdqContext.resourceCheckWQ);
+	gCmdqContext.resourceCheckWQ = NULL;
 
 	/* release all tasks in both list */
 	for (index = 0; index < (sizeof(lists) / sizeof(lists[0])); ++index) {
@@ -7524,3 +7626,116 @@ void cmdq_core_save_hex_first_dump(const char *prefix_str,
 	}
 #endif
 }
+
+/* Use CMDQ as Resource Manager */
+void cmdqCoreLockResource(uint64_t engineFlag, bool fromNotify)
+{
+	struct ResourceUnitStruct *pResource = NULL;
+	struct list_head *p = NULL;
+
+	CMDQ_MSG("[Res] Lock resource with engine: 0x%016llx, fromNotify:%d\n",
+		engineFlag, fromNotify);
+
+	list_for_each(p, &gCmdqContext.resourceList) {
+		pResource = list_entry(p, struct ResourceUnitStruct, listEntry);
+		if (engineFlag & pResource->engine) {
+			mutex_lock(&gCmdqResourceMutex);
+			/* find matched engine */
+			if (fromNotify)
+				pResource->notify = sched_clock();
+			else
+				pResource->lock = sched_clock();
+
+			if (!pResource->used) {
+				/* First time used */
+				int32_t status;
+
+				CMDQ_MSG("[Res] Callback to release\n");
+				if (NULL == pResource->releaseCB) {
+					CMDQ_ERR("[Res]: release CB func is NULL, event:%d\n",
+						pResource->lockEvent);
+				} else {
+					/* release mutex before callback */
+					mutex_unlock(&gCmdqResourceMutex);
+					status =
+						pResource->releaseCB(pResource->lockEvent);
+					mutex_lock(&gCmdqResourceMutex);
+
+					if (status < 0) {
+						/* Error status print */
+						CMDQ_ERR("[Res]: release CB (%d) return fail:%d\n",
+									pResource->lockEvent, status);
+					}
+				}
+			}
+			pResource->used = true;
+			mutex_unlock(&gCmdqResourceMutex);
+		}
+	}
+}
+
+bool cmdqCoreAcquireResource(CMDQ_EVENT_ENUM resourceEvent)
+{
+	struct ResourceUnitStruct *pResource = NULL;
+	struct list_head *p = NULL;
+	bool result = false;
+
+	CMDQ_MSG("[Res] Acquire resource with event: %d\n", resourceEvent);
+	list_for_each(p, &gCmdqContext.resourceList) {
+		pResource = list_entry(p, struct ResourceUnitStruct, listEntry);
+		if (resourceEvent == pResource->lockEvent) {
+			mutex_lock(&gCmdqResourceMutex);
+			/* find matched resource */
+			result = !pResource->used;
+			if (result) {
+				CMDQ_MSG("[Res] Acquire successfully, event: %d\n", resourceEvent);
+				cmdqCoreClearEvent(resourceEvent);
+				pResource->acquire = sched_clock();
+			}
+			mutex_unlock(&gCmdqResourceMutex);
+			break;
+		}
+	}
+	return result;
+}
+
+void cmdqCoreReleaseResource(CMDQ_EVENT_ENUM resourceEvent)
+{
+	struct ResourceUnitStruct *pResource = NULL;
+	struct list_head *p = NULL;
+
+	CMDQ_MSG("[Res] Release resource with event: %d\n", resourceEvent);
+	list_for_each(p, &gCmdqContext.resourceList) {
+		pResource = list_entry(p, struct ResourceUnitStruct, listEntry);
+		if (resourceEvent == pResource->lockEvent) {
+			mutex_lock(&gCmdqResourceMutex);
+			/* find matched resource */
+			pResource->release = sched_clock();
+			mutex_unlock(&gCmdqResourceMutex);
+			break;
+		}
+	}
+}
+
+void cmdqCoreSetResourceCallback(CMDQ_EVENT_ENUM resourceEvent,
+							CmdqResourceAvailableCB resourceAvailable,
+							CmdqResourceReleaseCB resourceRelease)
+{
+	struct ResourceUnitStruct *pResource = NULL;
+	struct list_head *p = NULL;
+
+	CMDQ_MSG("[Res] Set resource callback with event: %d\n", resourceEvent);
+	list_for_each(p, &gCmdqContext.resourceList) {
+		pResource = list_entry(p, struct ResourceUnitStruct, listEntry);
+		if (resourceEvent == pResource->lockEvent) {
+			CMDQ_MSG("[Res] Set resource callback ok!\n");
+			mutex_lock(&gCmdqResourceMutex);
+			/* find matched resource */
+			pResource->availableCB = resourceAvailable;
+			pResource->releaseCB = resourceRelease;
+			mutex_unlock(&gCmdqResourceMutex);
+			break;
+		}
+	}
+}
+

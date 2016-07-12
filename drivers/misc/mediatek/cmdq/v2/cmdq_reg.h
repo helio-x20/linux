@@ -5,14 +5,12 @@
 #include <asm/io.h>
 
 #include "cmdq_core.h"
-#include "../cmdq_device.h"
+#include "cmdq_device.h"
 
-#ifndef CMDQ_OF_SUPPORT
-#define GCE_BASEPA_NO_OF		0x10217000
-#endif
+#define MMSYS_CONFIG_BASE	cmdq_dev_get_module_base_VA_MMSYS_CONFIG()
 
-#define GCE_BASE_PA cmdq_dev_get_module_base_PA_GCE()
-#define GCE_BASE_VA cmdq_dev_get_module_base_VA_GCE()
+#define GCE_BASE_PA			cmdq_dev_get_module_base_PA_GCE()
+#define GCE_BASE_VA			cmdq_dev_get_module_base_VA_GCE()
 
 #define CMDQ_CORE_WARM_RESET         (GCE_BASE_VA + 0x000)
 #define CMDQ_CURR_IRQ_STATUS         (GCE_BASE_VA + 0x010)
@@ -53,13 +51,17 @@
 
 #define CMDQ_THR_EXEC_CNT_PA(id)     (GCE_BASE_PA + (0x080 * id) + 0x128)
 
+#ifdef CMDQ_USE_LEGACY
+#define CMDQ_TEST_MMSYS_DUMMY_OFFSET (0x890)
+#else
 /* use DUMMY_3(0x89C) because DUMMY_0/1 is CLKMGR SW */
 #define CMDQ_TEST_MMSYS_DUMMY_OFFSET (0x89C)
+#endif
 
 #define CMDQ_TEST_MMSYS_DUMMY_PA     (0x14000000 + CMDQ_TEST_MMSYS_DUMMY_OFFSET)
 #define CMDQ_TEST_MMSYS_DUMMY_VA     (cmdq_dev_get_module_base_VA_MMSYS_CONFIG() + CMDQ_TEST_MMSYS_DUMMY_OFFSET)
 
-#define CMDQ_APXGPT2_COUNT           (0x10004028)	/* each count is 76ns */
+#define CMDQ_APXGPT2_COUNT           (cmdq_dev_get_APXGPT2_count())
 
 #define CMDQ_REG_GET32(addr)         (readl((void *)addr) & 0xFFFFFFFF)
 #define CMDQ_REG_GET16(addr)         (readl((void *)addr) & 0x0000FFFF)

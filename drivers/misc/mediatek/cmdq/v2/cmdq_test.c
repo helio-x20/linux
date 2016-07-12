@@ -13,7 +13,6 @@
 #include "cmdq_reg.h"
 #include "cmdq_core.h"
 #include "cmdq_virtual.h"
-#include "cmdq_platform.h"
 #include "cmdq_mdp_common.h"
 #include "cmdq_device.h"
 
@@ -912,7 +911,7 @@ static void testcase_dram_access(void)
 	/* note that we force convert to physical reg address. */
 	/* if it is already physical address, it won't be affected (at least on this platform) */
 	argA = CMDQ_TEST_MMSYS_DUMMY_PA;
-	subsysCode = cmdq_get_func()->subsysPA(argA);
+	subsysCode = cmdq_core_subsys_from_phys_addr(argA);
 
 	pCmdEnd = (uint32_t *) (((char *)handle->pBuffer) + handle->blockSize);
 
@@ -2752,11 +2751,11 @@ static void testcase_open_buffer_dump(int32_t scenario, int32_t bufferSize)
 	CMDQ_MSG("%s END\n", __func__);
 }
 
-static void testcase_check_event_table_correctness(void)
+static void testcase_check_dts_correctness(void)
 {
 	CMDQ_MSG("%s\n", __func__);
 
-	cmdq_dev_test_event_correctness();
+	cmdq_dev_test_dts_correctness();
 
 	CMDQ_MSG("%s END\n", __func__);
 }
@@ -2967,6 +2966,159 @@ static void testcase_poll_monitor_trigger(uint64_t pollReg, uint64_t pollValue, 
 	CMDQ_MSG("%s\n", __func__);
 }
 
+static void testcase_acquire_resource(bool acquireExpected)
+{
+	cmdqRecHandle handle;
+	const uint32_t PATTERN = (1 << 0) | (1 << 2) | (1 << 16);
+	uint32_t value = 0;
+	int32_t acquireResult;
+
+	CMDQ_MSG("%s\n", __func__);
+
+	/* set to 0xFFFFFFFF */
+	CMDQ_REG_SET32(CMDQ_TEST_MMSYS_DUMMY_VA, ~0);
+
+	/* use CMDQ to set to PATTERN */
+	cmdqRecCreate(CMDQ_SCENARIO_PRIMARY_DISP, &handle);
+	cmdqRecReset(handle);
+	cmdqRecSetSecure(handle, gCmdqTestSecure);
+	acquireResult = cmdqRecWriteForResource(handle, CMDQ_SYNC_RESOURCE_WROT0,
+		CMDQ_TEST_MMSYS_DUMMY_PA, PATTERN, ~0);
+	if (acquireResult < 0) {
+		/* Do error handle for acquire resource fail */
+		if (acquireExpected) {
+			/* print error message */
+			CMDQ_ERR("Acquire resource fail: it's not expected!\n");
+		} else {
+			/* print message */
+			CMDQ_LOG("Acquire resource fail: it's expected!\n");
+		}
+	} else {
+		if (!acquireExpected) {
+			/* print error message */
+			CMDQ_ERR("Acquire resource success: it's not expected!\n");
+		} else {
+			/* print message */
+			CMDQ_LOG("Acquire resource success: it's expected!\n");
+		}
+	}
+	cmdqRecFlush(handle);
+	cmdqRecDestroy(handle);
+
+	/* value check */
+	value = CMDQ_REG_GET32(CMDQ_TEST_MMSYS_DUMMY_VA);
+	if (value != PATTERN && acquireExpected) {
+		/* test fail */
+		CMDQ_ERR("TEST FAIL: wrote value is 0x%08x, not 0x%08x\n", value, PATTERN);
+	}
+
+	CMDQ_MSG("%s END\n", __func__);
+}
+
+static int32_t testcase_res_release_cb(CMDQ_EVENT_ENUM resourceEvent)
+{
+	cmdqRecHandle handle;
+	const uint32_t PATTERN = (1 << 0) | (1 << 2) | (1 << 16);
+
+	CMDQ_MSG("%s\n", __func__);
+	/* Flush release command immedately with wait MUTEX event */
+
+	/* set to 0xFFFFFFFF */
+	CMDQ_REG_SET32(CMDQ_TEST_MMSYS_DUMMY_VA, ~0);
+
+	/* use CMDQ to set to PATTERN */
+	cmdqRecCreate(CMDQ_SCENARIO_PRIMARY_DISP, &handle);
+	cmdqRecReset(handle);
+	cmdqRecSetSecure(handle, gCmdqTestSecure);
+	/* simulate display need to wait single */
+	cmdqRecWaitNoClear(handle, CMDQ_SYNC_TOKEN_USER_0);
+	/* simulate release resource via write register */
+	/* cmdqRecWrite(handle, CMDQ_TEST_MMSYS_DUMMY_PA, PATTERN, ~0);
+	cmdqRecReleaseResource(handle, resourceEvent); */
+	cmdqRecWriteAndReleaseResource(handle, resourceEvent,
+		CMDQ_TEST_MMSYS_DUMMY_PA, PATTERN, ~0);
+	cmdqRecFlushAsync(handle);
+	cmdqRecDestroy(handle);
+
+	CMDQ_MSG("%s END\n", __func__);
+	return 0;
+}
+
+static int32_t testcase_res_available_cb(CMDQ_EVENT_ENUM resourceEvent)
+{
+	CMDQ_MSG("%s\n", __func__);
+	testcase_acquire_resource(true);
+	CMDQ_MSG("%s END\n", __func__);
+	return 0;
+}
+
+static void testcase_notify_and_delay_submit(uint32_t delayTimeMS)
+{
+	cmdqRecHandle handle;
+	const uint32_t PATTERN = (1 << 0) | (1 << 2) | (1 << 16);
+	uint32_t value = 0;
+	const uint64_t engineFlag = (1LL << CMDQ_ENG_MDP_WROT0);
+	uint32_t contDelay;
+
+	CMDQ_MSG("%s\n", __func__);
+
+	/* clear token */
+	CMDQ_REG_SET32(CMDQ_SYNC_TOKEN_UPD, CMDQ_SYNC_TOKEN_USER_0);
+
+	cmdqCoreSetResourceCallback(CMDQ_SYNC_RESOURCE_WROT0,
+		testcase_res_available_cb, testcase_res_release_cb);
+
+	testcase_acquire_resource(true);
+
+	/* notify and delay time*/
+	if (delayTimeMS > 0) {
+		CMDQ_MSG("Before delay for acquire\n");
+		msleep_interruptible(delayTimeMS);
+		CMDQ_MSG("Before lock and delay\n");
+		cmdqCoreLockResource(engineFlag, true);
+		msleep_interruptible(delayTimeMS);
+		CMDQ_MSG("After lock and delay\n");
+	}
+
+	/* set to 0xFFFFFFFF */
+	CMDQ_REG_SET32(CMDQ_TEST_MMSYS_DUMMY_VA, ~0);
+
+	/* use CMDQ to set to PATTERN */
+	cmdqRecCreate(CMDQ_SCENARIO_DEBUG, &handle);
+	cmdqRecReset(handle);
+	cmdqRecSetSecure(handle, gCmdqTestSecure);
+	handle->engineFlag = engineFlag;
+	cmdqRecWaitNoClear(handle, CMDQ_SYNC_RESOURCE_WROT0);
+	cmdqRecWrite(handle, CMDQ_TEST_MMSYS_DUMMY_PA, PATTERN, ~0);
+	cmdqRecFlushAsync(handle);
+	cmdqCoreSetEvent(CMDQ_SYNC_TOKEN_USER_0);
+	msleep_interruptible(2000);
+
+	/* Delay and continue sent */
+	for (contDelay = 300; contDelay < CMDQ_DELAY_RELEASE_RESOURCE_MS*1.2; contDelay += 300) {
+		CMDQ_MSG("Before delay and flush\n");
+		msleep_interruptible(contDelay);
+		CMDQ_MSG("After delay\n");
+		cmdqRecFlush(handle);
+		CMDQ_MSG("After flush\n");
+	}
+	/* Simulate DISP acquire fail case, acquire immediate after flush MDP */
+	cmdqRecFlushAsync(handle);
+	testcase_acquire_resource(false);
+
+	cmdqRecFlushAsync(handle);
+	cmdqRecDestroy(handle);
+
+	/* value check */
+	value = CMDQ_REG_GET32(CMDQ_TEST_MMSYS_DUMMY_VA);
+	if (value != PATTERN) {
+		/* test fail */
+		CMDQ_ERR("TEST FAIL: wrote value is 0x%08x, not 0x%08x\n", value, PATTERN);
+	}
+
+	CMDQ_MSG("%s END\n", __func__);
+}
+
 typedef enum CMDQ_TESTCASE_ENUM {
 	CMDQ_TESTCASE_ALL = 0,
 	CMDQ_TESTCASE_BASIC = 1,
@@ -2982,8 +3134,11 @@ typedef enum CMDQ_TESTCASE_ENUM {
 static void testcase_general_handling(int32_t testID)
 {
 	switch (testID) {
+	case 120:
+		testcase_notify_and_delay_submit(16);
+		break;
 	case 119:
-		testcase_check_event_table_correctness();
+		testcase_check_dts_correctness();
 		break;
 	case 118:
 		testcase_error_irq();
@@ -3173,7 +3328,6 @@ static void testcase_general_handling(int32_t testID)
 		testcase_dram_access();
 		break;
 	case CMDQ_TESTCASE_ALL:
-	default:
 		testcase_multiple_async_request();
 		testcase_read_to_data_reg();
 		testcase_get_result();
@@ -3210,6 +3364,10 @@ static void testcase_general_handling(int32_t testID)
 		testcase_thread_dispatch();
 		testcase_full_thread_array();
 		testcase_module_full_dump();
+		break;
+	default:
+		CMDQ_LOG("[TESTCASE]CONFIG Not Found: gCmdqTestSecure: %d, testType: %lld\n",
+			 gCmdqTestSecure, gCmdqTestConfig[0]);
 		break;
 	}
 }
@@ -3266,7 +3424,7 @@ static ssize_t cmdq_write_test_proc_config(struct file *file,
 					   const char __user *userBuf, size_t count, loff_t *data)
 {
 	char desc[50];
-	int64_t testConfig[CMDQ_TESTCASE_PARAMETER_MAX];
+	long long int testConfig[CMDQ_TESTCASE_PARAMETER_MAX];
 	int32_t len = 0;
 
 	do {

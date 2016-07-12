@@ -3,17 +3,8 @@
 
 #include "cmdq_def.h"
 
-/* support sync non suspendable */
-typedef const bool(*CmdqSyncNonSuspendable) (void);
-
-/* support wait and receive event in same tick */
-typedef const bool(*CmdqWaitAndReceiveEvent) (void);
-
 /* get subsys LSB in argA */
 typedef const uint32_t(*CmdqGetSubsysLSBArgA) (void);
-
-/* subsys from phys addr */
-typedef int32_t(*CmdqSubsysPA) (uint32_t physAddr);
 
 /* is a secure thread */
 typedef const bool(*CmdqIsSecureThread) (const int32_t thread);
@@ -108,10 +99,7 @@ typedef void (*CmdqTestCleanup) (void);
 typedef void (*CmdqInitModulePAStat) (void);
 
 typedef struct cmdqCoreFuncStruct {
-	CmdqSyncNonSuspendable syncNonSuspendable;
-	CmdqWaitAndReceiveEvent waitAndReceiveEvent;
 	CmdqGetSubsysLSBArgA getSubsysLSBArgA;
-	CmdqSubsysPA subsysPA;
 	CmdqIsSecureThread isSecureThread;
 	CmdqIsValidNotifyThread isValidNotifyThread;
 	CmdqIsDispScenario isDispScenario;

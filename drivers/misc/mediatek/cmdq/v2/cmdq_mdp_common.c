@@ -10,6 +10,72 @@
 /*******************                    Platform dependent function                    ********************/
 /**************************************************************************************/
 
+typedef struct RegDef {
+	int offset;
+	const char *name;
+} RegDef;
+
+void cmdq_mdp_dump_mmsys_config_virtual(void)
+{
+	int i = 0;
+	uint32_t value = 0;
+
+	static const struct RegDef configRegisters[] = {
+		{0x01c, "ISP_MOUT_EN"},
+		{0x020, "MDP_RDMA_MOUT_EN"},
+		{0x024, "MDP_PRZ0_MOUT_EN"},
+		{0x028, "MDP_PRZ1_MOUT_EN"},
+		{0x02C, "MDP_TDSHP_MOUT_EN"},
+		{0x030, "DISP_OVL0_MOUT_EN"},
+		{0x034, "DISP_OVL1_MOUT_EN"},
+		{0x038, "DISP_DITHER_MOUT_EN"},
+		{0x03C, "DISP_UFOE_MOUT_EN"},
+		/* {0x040, "MMSYS_MOUT_RST"}, */
+		{0x044, "MDP_PRZ0_SEL_IN"},
+		{0x048, "MDP_PRZ1_SEL_IN"},
+		{0x04C, "MDP_TDSHP_SEL_IN"},
+		{0x050, "MDP_WDMA_SEL_IN"},
+		{0x054, "MDP_WROT_SEL_IN"},
+		{0x058, "DISP_COLOR_SEL_IN"},
+		{0x05C, "DISP_WDMA_SEL_IN"},
+		{0x060, "DISP_UFOE_SEL_IN"},
+		{0x064, "DSI0_SEL_IN"},
+		{0x068, "DPI0_SEL_IN"},
+		{0x06C, "DISP_RDMA0_SOUT_SEL_IN"},
+		{0x070, "DISP_RDMA1_SOUT_SEL_IN"},
+		{0x0F0, "MMSYS_MISC"},
+		/* ACK and REQ related */
+		{0x8a0, "DISP_DL_VALID_0"},
+		{0x8a4, "DISP_DL_VALID_1"},
+		{0x8a8, "DISP_DL_READY_0"},
+		{0x8ac, "DISP_DL_READY_1"},
+		{0x8b0, "MDP_DL_VALID_0"},
+		{0x8b4, "MDP_DL_READY_0"}
+	};
+
+	for (i = 0; i < sizeof(configRegisters) / sizeof(configRegisters[0]); ++i) {
+		value = CMDQ_REG_GET16(MMSYS_CONFIG_BASE + configRegisters[i].offset);
+		CMDQ_ERR("%s: 0x%08x\n", configRegisters[i].name, value);
+	}
+}
+
+/* VENC callback function */
+int32_t cmdqVEncDumpInfo_virtual(uint64_t engineFlag, int level)
+{
+	return 0;
+}
+
+/* Initialization & de-initialization MDP base VA */
+void cmdq_mdp_init_module_base_VA_virtual(void)
+{
+	/* Do Nothing */
+}
+
+void cmdq_mdp_deinit_module_base_VA_virtual(void)
+{
+	/* Do Nothing */
+}
+
 /* query MDP clock is on  */
 bool cmdq_mdp_clock_is_on_virtual(CMDQ_ENG_ENUM engine)
 {
@@ -28,10 +94,65 @@ void cmdq_mdp_init_module_clk_virtual(void)
 	/* Do Nothing */
 }
 
-/* VENC callback function */
-int32_t cmdqVEncDumpInfo_virtual(uint64_t engineFlag, int level)
+/* MDP engine dump */
+void cmdq_mdp_dump_rsz_virtual(const unsigned long base, const char *label)
 {
-	return 0;
+	uint32_t value[8] = { 0 };
+	uint32_t request[4] = { 0 };
+	uint32_t state = 0;
+
+	value[0] = CMDQ_REG_GET32(base + 0x004);
+	value[1] = CMDQ_REG_GET32(base + 0x00C);
+	value[2] = CMDQ_REG_GET32(base + 0x010);
+	value[3] = CMDQ_REG_GET32(base + 0x014);
+	value[4] = CMDQ_REG_GET32(base + 0x018);
+	CMDQ_REG_SET32(base + 0x040, 0x00000001);
+	value[5] = CMDQ_REG_GET32(base + 0x044);
+	CMDQ_REG_SET32(base + 0x040, 0x00000002);
+	value[6] = CMDQ_REG_GET32(base + 0x044);
+	CMDQ_REG_SET32(base + 0x040, 0x00000003);
+	value[7] = CMDQ_REG_GET32(base + 0x044);
+
+	CMDQ_ERR("=============== [CMDQ] %s Status ====================================\n", label);
+	CMDQ_ERR("RSZ_CONTROL: 0x%08x, RSZ_INPUT_IMAGE: 0x%08x RSZ_OUTPUT_IMAGE: 0x%08x\n",
+		 value[0], value[1], value[2]);
+	CMDQ_ERR("RSZ_HORIZONTAL_COEFF_STEP: 0x%08x, RSZ_VERTICAL_COEFF_STEP: 0x%08x\n",
+		 value[3], value[4]);
+	CMDQ_ERR("RSZ_DEBUG_1: 0x%08x, RSZ_DEBUG_2: 0x%08x, RSZ_DEBUG_3: 0x%08x\n",
+		 value[5], value[6], value[7]);
+
+	/* parse state */
+	/* .valid=1/request=1: upstream module sends data */
+	/* .ready=1: downstream module receives data */
+	state = value[6] & 0xF;
+	request[0] = state & (0x1);	/* out valid */
+	request[1] = (state & (0x1 << 1)) >> 1;	/* out ready */
+	request[2] = (state & (0x1 << 2)) >> 2;	/* in valid */
+	request[3] = (state & (0x1 << 3)) >> 3;	/* in ready */
+
+	CMDQ_ERR("RSZ inRdy,inRsq,outRdy,outRsq: %d,%d,%d,%d (%s)\n",
+		 request[3], request[2], request[1], request[0], cmdq_mdp_get_rsz_state(state));
+}
+
+void cmdq_mdp_dump_tdshp_virtual(const unsigned long base, const char *label)
+{
+	uint32_t value[8] = { 0 };
+
+	value[0] = CMDQ_REG_GET32(base + 0x114);
+	value[1] = CMDQ_REG_GET32(base + 0x11C);
+	value[2] = CMDQ_REG_GET32(base + 0x104);
+	value[3] = CMDQ_REG_GET32(base + 0x108);
+	value[4] = CMDQ_REG_GET32(base + 0x10C);
+	value[5] = CMDQ_REG_GET32(base + 0x120);
+	value[6] = CMDQ_REG_GET32(base + 0x128);
+	value[7] = CMDQ_REG_GET32(base + 0x110);
+
+	CMDQ_ERR("=============== [CMDQ] %s Status ====================================\n", label);
+	CMDQ_ERR("TDSHP INPUT_CNT: 0x%08x, OUTPUT_CNT: 0x%08x\n", value[0], value[1]);
+	CMDQ_ERR("TDSHP INTEN: 0x%08x, INTSTA: 0x%08x, 0x10C: 0x%08x\n", value[2], value[3],
+		 value[4]);
+	CMDQ_ERR("TDSHP CFG: 0x%08x, IN_SIZE: 0x%08x, OUT_SIZE: 0x%08x\n", value[7], value[5],
+		 value[6]);
 }
 
 /* MDP callback function */
@@ -53,16 +174,6 @@ int32_t cmdqMdpResetEng_virtual(uint64_t engineFlag)
 int32_t cmdqMdpClockOff_virtual(uint64_t engineFlag)
 {
 	return 0;
-}
-
-void cmdq_mdp_init_module_base_VA_virtual(void)
-{
-	/* Do Nothing */
-}
-
-void cmdq_mdp_deinit_module_base_VA_virtual(void)
-{
-	/* Do Nothing */
 }
 
 /* test MDP clock function */
@@ -96,18 +207,24 @@ void cmdq_mdp_virtual_function_setting(void)
 
 	pFunc = &(gMDPFunctionPointer);
 
+	pFunc->dumpMMSYSConfig = cmdq_mdp_dump_mmsys_config_virtual;
+
+	pFunc->vEncDumpInfo = cmdqVEncDumpInfo_virtual;
+
+	pFunc->initModuleBaseVA = cmdq_mdp_init_module_base_VA_virtual;
+	pFunc->deinitModuleBaseVA = cmdq_mdp_deinit_module_base_VA_virtual;
+
 	pFunc->mdpClockIsOn = cmdq_mdp_clock_is_on_virtual;
 	pFunc->enableMdpClock = cmdq_mdp_enable_clock_virtual;
 	pFunc->initModuleCLK = cmdq_mdp_init_module_clk_virtual;
 
-	pFunc->vEncDumpInfo = cmdqVEncDumpInfo_virtual;
+	pFunc->mdpDumpRsz = cmdq_mdp_dump_rsz_virtual;
+	pFunc->mdpDumpTdshp = cmdq_mdp_dump_tdshp_virtual;
+
 	pFunc->mdpClockOn = cmdqMdpClockOn_virtual;
 	pFunc->mdpDumpInfo = cmdqMdpDumpInfo_virtual;
 	pFunc->mdpResetEng = cmdqMdpResetEng_virtual;
 	pFunc->mdpClockOff = cmdqMdpClockOff_virtual;
-
-	pFunc->initModuleBaseVA = cmdq_mdp_init_module_base_VA_virtual;
-	pFunc->deinitModuleBaseVA = cmdq_mdp_deinit_module_base_VA_virtual;
 
 	pFunc->rdmaGetRegOffsetSrcAddr = cmdq_mdp_rdma_get_reg_offset_src_addr_virtual;
 	pFunc->wrotGetRegOffsetDstAddr = cmdq_mdp_wrot_get_reg_offset_dst_addr_virtual;
@@ -342,45 +459,6 @@ const char *cmdq_mdp_get_rsz_state(const uint32_t state)
 	}
 }
 
-void cmdq_mdp_dump_rsz(const unsigned long base, const char *label)
-{
-	uint32_t value[8] = { 0 };
-	uint32_t request[4] = { 0 };
-	uint32_t state = 0;
-
-	value[0] = CMDQ_REG_GET32(base + 0x004);
-	value[1] = CMDQ_REG_GET32(base + 0x00C);
-	value[2] = CMDQ_REG_GET32(base + 0x010);
-	value[3] = CMDQ_REG_GET32(base + 0x014);
-	value[4] = CMDQ_REG_GET32(base + 0x018);
-	CMDQ_REG_SET32(base + 0x040, 0x00000001);
-	value[5] = CMDQ_REG_GET32(base + 0x044);
-	CMDQ_REG_SET32(base + 0x040, 0x00000002);
-	value[6] = CMDQ_REG_GET32(base + 0x044);
-	CMDQ_REG_SET32(base + 0x040, 0x00000003);
-	value[7] = CMDQ_REG_GET32(base + 0x044);
-
-	CMDQ_ERR("=============== [CMDQ] %s Status ====================================\n", label);
-	CMDQ_ERR("RSZ_CONTROL: 0x%08x, RSZ_INPUT_IMAGE: 0x%08x RSZ_OUTPUT_IMAGE: 0x%08x\n",
-		 value[0], value[1], value[2]);
-	CMDQ_ERR("RSZ_HORIZONTAL_COEFF_STEP: 0x%08x, RSZ_VERTICAL_COEFF_STEP: 0x%08x\n",
-		 value[3], value[4]);
-	CMDQ_ERR("RSZ_DEBUG_1: 0x%08x, RSZ_DEBUG_2: 0x%08x, RSZ_DEBUG_3: 0x%08x\n",
-		 value[5], value[6], value[7]);
-
-	/* parse state */
-	/* .valid=1/request=1: upstream module sends data */
-	/* .ready=1: downstream module receives data */
-	state = value[6] & 0xF;
-	request[0] = state & (0x1);	/* out valid */
-	request[1] = (state & (0x1 << 1)) >> 1;	/* out ready */
-	request[2] = (state & (0x1 << 2)) >> 2;	/* in valid */
-	request[3] = (state & (0x1 << 3)) >> 3;	/* in ready */
-
-	CMDQ_ERR("RSZ inRdy,inRsq,outRdy,outRsq: %d,%d,%d,%d (%s)\n",
-		 request[3], request[2], request[1], request[0], cmdq_mdp_get_rsz_state(state));
-}
-
 void cmdq_mdp_dump_rot(const unsigned long base, const char *label)
 {
 	uint32_t value[32] = { 0 };
@@ -461,25 +539,33 @@ void cmdq_mdp_dump_rot(const unsigned long base, const char *label)
 	CMDQ_ERR("VIDO_INT: 0x%08x\n", value[30]);
 }
 
-void cmdq_mdp_dump_tdshp(const unsigned long base, const char *label)
+void cmdq_mdp_dump_color(const unsigned long base, const char *label)
 {
-	uint32_t value[8] = { 0 };
+	uint32_t value[13] = { 0 };
 
-	value[0] = CMDQ_REG_GET32(base + 0x114);
-	value[1] = CMDQ_REG_GET32(base + 0x11C);
-	value[2] = CMDQ_REG_GET32(base + 0x104);
-	value[3] = CMDQ_REG_GET32(base + 0x108);
-	value[4] = CMDQ_REG_GET32(base + 0x10C);
-	value[5] = CMDQ_REG_GET32(base + 0x120);
-	value[6] = CMDQ_REG_GET32(base + 0x128);
-	value[7] = CMDQ_REG_GET32(base + 0x110);
+	value[0] = CMDQ_REG_GET32(base + 0x400);
+	value[1] = CMDQ_REG_GET32(base + 0x404);
+	value[2] = CMDQ_REG_GET32(base + 0x408);
+	value[3] = CMDQ_REG_GET32(base + 0x40C);
+	value[4] = CMDQ_REG_GET32(base + 0x410);
+	value[5] = CMDQ_REG_GET32(base + 0x420);
+	value[6] = CMDQ_REG_GET32(base + 0xC00);
+	value[7] = CMDQ_REG_GET32(base + 0xC04);
+	value[8] = CMDQ_REG_GET32(base + 0xC08);
+	value[9] = CMDQ_REG_GET32(base + 0xC0C);
+	value[10] = CMDQ_REG_GET32(base + 0xC10);
+	value[11] = CMDQ_REG_GET32(base + 0xC50);
+	value[12] = CMDQ_REG_GET32(base + 0xC54);
 
 	CMDQ_ERR("=============== [CMDQ] %s Status ====================================\n", label);
-	CMDQ_ERR("TDSHP INPUT_CNT: 0x%08x, OUTPUT_CNT: 0x%08x\n", value[0], value[1]);
-	CMDQ_ERR("TDSHP INTEN: 0x%08x, INTSTA: 0x%08x, 0x10C: 0x%08x\n", value[2], value[3],
-		 value[4]);
-	CMDQ_ERR("TDSHP CFG: 0x%08x, IN_SIZE: 0x%08x, OUT_SIZE: 0x%08x\n", value[7], value[5],
-		 value[6]);
+	CMDQ_ERR("COLOR CFG_MAIN: 0x%08x\n", value[0]);
+	CMDQ_ERR("COLOR PXL_CNT_MAIN: 0x%08x, LINE_CNT_MAIN: 0x%08x\n", value[1], value[2]);
+	CMDQ_ERR("COLOR WIN_X_MAIN: 0x%08x, WIN_Y_MAIN: 0x%08x, DBG_CFG_MAIN: 0x%08x\n", value[3], value[4],
+		 value[5]);
+	CMDQ_ERR("COLOR START: 0x%08x, INTEN: 0x%08x, INTSTA: 0x%08x\n", value[6], value[7],
+		 value[8]);
+	CMDQ_ERR("COLOR OUT_SEL: 0x%08x, FRAME_DONE_DEL: 0x%08x\n", value[9], value[10]);
+	CMDQ_ERR("COLOR INTERNAL_IP_WIDTH: 0x%08x, INTERNAL_IP_HEIGHT: 0x%08x\n", value[11], value[12]);
 }
 
 const char *cmdq_mdp_get_wdma_state(uint32_t state)

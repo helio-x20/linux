@@ -5,6 +5,12 @@
 
 #include <linux/types.h>
 
+/* dump mmsys config */
+typedef void (*CmdqDumpMMSYSConfig) (void);
+
+/* VENC callback function */
+typedef int32_t(*CmdqVEncDumpInfo) (uint64_t engineFlag, int level);
+
 /* query MDP clock is on  */
 typedef bool(*CmdqMdpClockIsOn) (CMDQ_ENG_ENUM engine);
 
@@ -13,9 +19,6 @@ typedef void (*CmdqEnableMdpClock) (bool enable, CMDQ_ENG_ENUM engine);
 
 /* Common Clock Framework */
 typedef void (*CmdqMdpInitModuleClk) (void);
-
-/* VENC callback function */
-typedef int32_t(*CmdqVEncDumpInfo) (uint64_t engineFlag, int level);
 
 /* MDP callback function */
 typedef int32_t(*CmdqMdpClockOn) (uint64_t engineFlag);
@@ -31,6 +34,11 @@ typedef void (*CmdqMdpInitModuleBaseVA) (void);
 
 typedef void (*CmdqMdpDeinitModuleBaseVA) (void);
 
+/* MDP engine dump */
+typedef void (*CmdqMdpDumpRSZ) (const unsigned long base, const char *label);
+
+typedef void (*CmdqMdpDumpTDSHP) (const unsigned long base, const char *label);
+
 /* test MDP clock function */
 typedef const uint32_t(*CmdqMdpRdmaGetRegOffsetSrcAddr) (void);
 
@@ -41,16 +49,19 @@ typedef const uint32_t(*CmdqMdpWdmaGetRegOffsetDstAddr) (void);
 typedef void (*CmdqTestcaseClkmgrMdp) (void);
 
 typedef struct cmdqMDPFuncStruct {
+	CmdqDumpMMSYSConfig dumpMMSYSConfig;
 	CmdqVEncDumpInfo vEncDumpInfo;
+	CmdqMdpInitModuleBaseVA initModuleBaseVA;
+	CmdqMdpDeinitModuleBaseVA deinitModuleBaseVA;
 	CmdqMdpClockIsOn mdpClockIsOn;
 	CmdqEnableMdpClock enableMdpClock;
 	CmdqMdpInitModuleClk initModuleCLK;
+	CmdqMdpDumpRSZ mdpDumpRsz;
+	CmdqMdpDumpTDSHP mdpDumpTdshp;
 	CmdqMdpClockOn mdpClockOn;
 	CmdqMdpDumpInfo mdpDumpInfo;
 	CmdqMdpResetEng mdpResetEng;
 	CmdqMdpClockOff mdpClockOff;
-	CmdqMdpInitModuleBaseVA initModuleBaseVA;
-	CmdqMdpDeinitModuleBaseVA deinitModuleBaseVA;
 	CmdqMdpRdmaGetRegOffsetSrcAddr rdmaGetRegOffsetSrcAddr;
 	CmdqMdpWrotGetRegOffsetDstAddr wrotGetRegOffsetDstAddr;
 	CmdqMdpWdmaGetRegOffsetDstAddr wdmaGetRegOffsetDstAddr;
@@ -77,11 +88,12 @@ extern "C" {
 			       const uint32_t resetMask,
 			       const uint32_t resetValue, const bool pollInitResult);
 
+	const char *cmdq_mdp_get_rsz_state(const uint32_t state);
+
 	void cmdq_mdp_dump_venc(const unsigned long base, const char *label);
 	void cmdq_mdp_dump_rdma(const unsigned long base, const char *label);
-	void cmdq_mdp_dump_rsz(const unsigned long base, const char *label);
 	void cmdq_mdp_dump_rot(const unsigned long base, const char *label);
-	void cmdq_mdp_dump_tdshp(const unsigned long base, const char *label);
+	void cmdq_mdp_dump_color(const unsigned long base, const char *label);
 	void cmdq_mdp_dump_wdma(const unsigned long base, const char *label);
 
 /**************************************************************************************/
@@ -103,6 +115,9 @@ extern "C" {
 	const uint32_t cmdq_mdp_wdma_get_reg_offset_dst_addr(void);
 
 	void testcase_clkmgr_mdp(void);
+
+	/* Platform virtual function setting */
+	void cmdq_mdp_platform_function_setting(void);
 
 #ifdef __cplusplus
 }

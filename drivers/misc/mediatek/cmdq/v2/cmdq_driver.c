@@ -3,10 +3,8 @@
 #include "cmdq_core.h"
 #include "cmdq_virtual.h"
 #include "cmdq_reg.h"
-#include "cmdq_mdp.h"
 #include "cmdq_mdp_common.h"
 #include "cmdq_device.h"
-#include "cmdq_platform.h"
 #include "cmdq_sec.h"
 
 #include <linux/kernel.h>
@@ -25,7 +23,9 @@
 #include <linux/sched.h>
 #include <linux/pm.h>
 #include <linux/suspend.h>
-
+#ifdef CMDQ_USE_LEGACY
+#include <mach/mt_boot.h>
+#endif
 #ifndef CMDQ_OF_SUPPORT
 #include <mach/mt_irq.h>	/* mt_irq.h is not available on device tree enabled platforms */
 #endif
@@ -459,6 +459,28 @@ static long cmdq_driver_process_command_request(cmdqCommandStruct *pCommand)
 	return 0;
 }
 
+const bool cmdq_driver_support_wait_and_receive_event_in_same_tick(void)
+{
+#ifdef CMDQ_USE_LEGACY
+	const unsigned int code = mt_get_chip_hw_code();
+	CHIP_SW_VER ver = mt_get_chip_sw_ver();
+	bool support = false;
+
+	if (0x6795 == code) {
+		support = true;
+	} else if (CHIP_SW_VER_02 <= ver) {
+		/* SW V2 */
+		support = true;
+	} else if (CHIP_SW_VER_01 <= ver) {
+		support = false;
+	}
+
+	return support;
+#else
+	return true;
+#endif
+}
+
 static long cmdq_ioctl(struct file *pFile, unsigned int code, unsigned long param)
 {
 	struct cmdqCommandStruct command;
@@ -705,7 +727,7 @@ static long cmdq_ioctl(struct file *pFile, unsigned int code, unsigned long para
 		do {
 			int capBits = 0;
 
-			if (cmdq_get_func()->waitAndReceiveEvent())
+			if (cmdq_driver_support_wait_and_receive_event_in_same_tick())
 				capBits |= (1L << CMDQ_CAP_WFE);
 			else
 				capBits &= ~(1L << CMDQ_CAP_WFE);
@@ -716,7 +738,7 @@ static long cmdq_ioctl(struct file *pFile, unsigned int code, unsigned long para
 			}
 		} while (0);
 		break;
-	case CMDQ_IOCTL_QUERY_HW_EVENT_TABLE:
+	case CMDQ_IOCTL_QUERY_EVENT_TABLE:
 		do {
 			uint32_t tableSize;
 			int32_t *eventTable = cmdq_core_get_whole_event_table(&tableSize);
@@ -729,6 +751,17 @@ static long cmdq_ioctl(struct file *pFile, unsigned int code, unsigned long para
 				CMDQ_ERR("Copy HW event table to user space failed\n");
 				return -EFAULT;
 			}
+		} while (0);
+		break;
+	case CMDQ_IOCTL_NOTIFY_ENGINE:
+		do {
+			uint64_t engineFlag;
+
+			if (copy_from_user(&engineFlag, (void *)param, sizeof(uint64_t))) {
+				CMDQ_ERR("CMDQ_IOCTL_NOTIFY_ENGINE copy_from_user failed\n");
+				return -EFAULT;
+			}
+			cmdqCoreLockResource(engineFlag, true);
 		} while (0);
 		break;
 	default:
@@ -751,7 +784,8 @@ static long cmdq_ioctl_compat(struct file *pFile, unsigned int code, unsigned lo
 	case CMDQ_IOCTL_FREE_WRITE_ADDRESS:
 	case CMDQ_IOCTL_READ_ADDRESS_VALUE:
 	case CMDQ_IOCTL_QUERY_CAP_BITS:
-	case CMDQ_IOCTL_QUERY_HW_EVENT_TABLE:
+	case CMDQ_IOCTL_QUERY_EVENT_TABLE:
+	case CMDQ_IOCTL_NOTIFY_ENGINE:
 		/* All ioctl structures should be the same size in 32-bit and 64-bit linux. */
 		return cmdq_ioctl(pFile, code, param);
 	case CMDQ_IOCTL_LOCK_MUTEX:
@@ -870,7 +904,6 @@ static int cmdq_probe(struct platform_device *pDevice)
 
 	/* Function link */
 	cmdq_virtual_function_setting();
-	cmdq_platform_function_setting();
 
 	/* init cmdq device related data */
 	cmdq_dev_init(pDevice);

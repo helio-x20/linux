@@ -24,6 +24,7 @@ typedef struct CmdqDeviceStruct {
 } CmdqDeviceStruct;
 static CmdqDeviceStruct gCmdqDev;
 static long gMMSYS_CONFIG_Base_VA;
+static long gAPXGPT2Count;
 
 struct device *cmdq_dev_get(void)
 {
@@ -55,12 +56,20 @@ const long cmdq_dev_get_module_base_VA_MMSYS_CONFIG(void)
 	return gMMSYS_CONFIG_Base_VA;
 }
 
+const long cmdq_dev_get_APXGPT2_count(void)
+{
+	return gAPXGPT2Count;
+}
+
 void cmdq_dev_init_module_base_VA(void)
 {
+	gMMSYS_CONFIG_Base_VA = 0;
+
 #ifdef CMDQ_OF_SUPPORT
-	gMMSYS_CONFIG_Base_VA = cmdq_dev_alloc_module_base_VA_by_name("mediatek,MMSYS_CONFIG");
-#else
-	gMMSYS_CONFIG_Base_VA = MMSYS_CONFIG_BASE;
+	gMMSYS_CONFIG_Base_VA = cmdq_dev_alloc_module_base_VA_by_name("mediatek,mmsys_config");
+
+	if (0 == gMMSYS_CONFIG_Base_VA)
+		gMMSYS_CONFIG_Base_VA = cmdq_dev_alloc_module_base_VA_by_name("mediatek,MMSYS_CONFIG");
 #endif
 
 	cmdq_mdp_get_func()->initModuleBaseVA();
@@ -93,7 +102,7 @@ void cmdq_dev_free_module_base_VA(const long VA)
 	iounmap((void *)VA);
 }
 
-long cmdq_dev_get_node_PA(struct device_node *node, int index)
+long cmdq_dev_get_gce_node_PA(struct device_node *node, int index)
 {
 	struct resource res;
 	long regBasePA = 0L;
@@ -210,7 +219,7 @@ uint32_t cmdq_dev_enable_clock_SMI_COMMON(bool enable)
 #endif				/* !defined(CMDQ_USE_CCF) */
 
 IMP_ENABLE_HW_CLOCK(SMI_LARB0, SMI_LARB0);
-#ifdef CMDQ_CG_DISP0_MUTEX_32K
+#ifdef CMDQ_USE_LEGACY
 IMP_ENABLE_HW_CLOCK(MUTEX_32K, MUTEX_32K);
 #endif
 #undef IMP_ENABLE_HW_CLOCK
@@ -247,38 +256,101 @@ bool cmdq_dev_gce_clock_is_enable(void)
 #endif
 }
 
-#ifdef CMDQ_INSTRUCTION_COUNT
-void cmdq_dev_get_module_PA_for_stat(const char *name, int index, long *startPA, long *endPA)
+void cmdq_dev_get_module_PA(const char *name, int index, long *startPA, long *endPA)
 {
+	int status;
 	struct device_node *node = NULL;
 	struct resource res;
 
-	node = of_find_compatible_node(NULL, NULL, name);
-	of_address_to_resource(node, index, &res);
-	*startPA = res.start;
-	*endPA = res.end;
-	CMDQ_LOG("DEV: PA(%s): start = 0x%lx, end = 0x%lx\n", name, *startPA, *endPA);
+	do {
+		node = of_find_compatible_node(NULL, NULL, name);
+		if (NULL == node)
+			break;
+
+		status = of_address_to_resource(node, index, &res);
+		if (status < 0)
+			break;
+
+		*startPA = res.start;
+		*endPA = res.end;
+		CMDQ_MSG("DEV: PA(%s): start = 0x%lx, end = 0x%lx\n", name, *startPA, *endPA);
+	} while (0);
+}
+
+#ifdef CMDQ_OF_SUPPORT
+void cmdq_dev_get_subsys_by_name(struct device_node *node, CMDQ_SUBSYS_ENUM subsys,
+				  const char *grp_name, const char *dts_name)
+{
+	int status;
+	uint32_t gceSubsys[3] = { 0, 0, 0 };
+	SubsysStruct *gceSubsysStruct = NULL;
+
+	do {
+		if (subsys < 0 || subsys >= CMDQ_SUBSYS_MAX_COUNT)
+			break;
+
+		gceSubsysStruct = cmdq_core_get_whole_subsys_table();
+
+		status = of_property_read_u32_array(node, dts_name, gceSubsys, ARRAY_SIZE(gceSubsys));
+		if (status < 0) {
+			gceSubsysStruct[subsys].subsysID = -1;
+			break;
+		}
+
+		gceSubsysStruct[subsys].msb = gceSubsys[0];
+		gceSubsysStruct[subsys].subsysID = gceSubsys[1];
+		gceSubsysStruct[subsys].mask = gceSubsys[2];
+		gceSubsysStruct[subsys].grpName = grp_name;
+	} while (0);
+}
+
+void cmdq_dev_test_subsys_correctness_impl(CMDQ_SUBSYS_ENUM subsys)
+{
+	SubsysStruct *gceSubsysStruct = NULL;
+
+	if (subsys >= 0 && subsys < CMDQ_SUBSYS_MAX_COUNT) {
+		gceSubsysStruct = cmdq_core_get_whole_subsys_table();
+
+		if (gceSubsysStruct[subsys].subsysID != -1) {
+			/* print subsys information from device tree */
+			CMDQ_LOG("(%s), msb: 0x%08x, %d, 0x%08x\n",
+				gceSubsysStruct[subsys].grpName, gceSubsysStruct[subsys].msb,
+				gceSubsysStruct[subsys].subsysID, gceSubsysStruct[subsys].mask);
+		}
+	}
 }
 #endif
 
-#if defined(CMDQ_OF_SUPPORT) && defined(CMDQ_DVENT_FROM_DTS)
-void cmdq_dev_get_event_value_by_name(CMDQ_EVENT_ENUM event, const char *dts_name)
+void cmdq_dev_init_subsys(struct device_node *node)
+{
+#ifdef CMDQ_OF_SUPPORT
+	cmdq_core_init_subsys();
+
+#undef DECLARE_CMDQ_SUBSYS
+#define DECLARE_CMDQ_SUBSYS(name, val, grp, dts_name) \
+{	\
+	cmdq_dev_get_subsys_by_name(node, val, #grp, #dts_name);	\
+}
+#include "cmdq_subsys.h"
+#undef DECLARE_CMDQ_SUBSYS
+#endif
+}
+
+#ifdef CMDQ_OF_SUPPORT
+void cmdq_dev_get_event_value_by_name(struct device_node *node, CMDQ_EVENT_ENUM event, const char *dts_name)
 {
 	int status;
 	uint32_t event_value;
-	struct device_node *node = NULL;
 
 	do {
 		if (event < 0 || event >= CMDQ_MAX_HW_EVENT_COUNT)
 			break;
 
-		node = of_find_compatible_node(NULL, NULL, "mediatek,gce");
-
 		status = of_property_read_u32(node, dts_name, &event_value);
 		if (status < 0)
 			break;
 
-		cmdq_core_set_HW_event_table(event, event_value);
+		cmdq_core_set_event_table(event, event_value);
 	} while (0);
 }
 
@@ -293,24 +365,24 @@ void cmdq_dev_test_event_correctness_impl(CMDQ_EVENT_ENUM event, const char *eve
 }
 #endif
 
-void cmdq_dev_init_module_HWEvent(void)
+void cmdq_dev_init_event_table(struct device_node *node)
 {
-#if defined(CMDQ_OF_SUPPORT) && defined(CMDQ_DVENT_FROM_DTS)
-	cmdq_core_init_HW_event_table();
+#ifdef CMDQ_OF_SUPPORT
+	cmdq_core_init_event_table();
 
 #undef DECLARE_CMDQ_EVENT
 #define DECLARE_CMDQ_EVENT(name, val, dts_name) \
 {	\
-	cmdq_dev_get_event_value_by_name(val, #dts_name);	\
+	cmdq_dev_get_event_value_by_name(node, val, #dts_name);	\
 }
 #include "cmdq_event_common.h"
 #undef DECLARE_CMDQ_EVENT
 #endif
 }
 
-void cmdq_dev_test_event_correctness(void)
+void cmdq_dev_test_dts_correctness(void)
 {
-#if defined(CMDQ_OF_SUPPORT) && defined(CMDQ_DVENT_FROM_DTS)
+#ifdef CMDQ_OF_SUPPORT
 #undef DECLARE_CMDQ_EVENT
 #define DECLARE_CMDQ_EVENT(name, val, dts_name) \
 {	\
@@ -318,6 +390,37 @@ void cmdq_dev_test_event_correctness(void)
 }
 #include "cmdq_event_common.h"
 #undef DECLARE_CMDQ_EVENT
+
+#undef DECLARE_CMDQ_SUBSYS
+#define DECLARE_CMDQ_SUBSYS(name, val, grp, dts_name) \
+{	\
+		cmdq_dev_test_subsys_correctness_impl(val);	\
+}
+#include "cmdq_subsys.h"
+#undef DECLARE_CMDQ_SUBSYS
+
+	CMDQ_LOG("APXGPT2_Count = 0x%08lx\n", gAPXGPT2Count);
+#endif
+}
+
+void cmdq_dev_init_device_tree(struct device_node *node)
+{
+	int status;
+	uint32_t apxgpt2_count_value = 0;
+
+	gAPXGPT2Count = 0;
+#ifdef CMDQ_OF_SUPPORT
+	/* init GCE subsys */
+	cmdq_dev_init_subsys(node);
+	/* init event table */
+	cmdq_dev_init_event_table(node);
+	do {
+		status = of_property_read_u32(node, "apxgpt2_count", &apxgpt2_count_value);
+		if (status < 0)
+			break;
+
+		gAPXGPT2Count = apxgpt2_count_value;
+	} while (0);
 #endif
 }
 
@@ -332,17 +435,12 @@ void cmdq_dev_init(struct platform_device *pDevice)
 		gCmdqDev.pDev = &pDevice->dev;
 #ifdef CMDQ_OF_SUPPORT
 		gCmdqDev.regBaseVA = (unsigned long)of_iomap(node, 0);
-		gCmdqDev.regBasePA = cmdq_dev_get_node_PA(node, 0);
+		gCmdqDev.regBasePA = cmdq_dev_get_gce_node_PA(node, 0);
 		gCmdqDev.irqId = irq_of_parse_and_map(node, 0);
 		gCmdqDev.irqSecId = irq_of_parse_and_map(node, 1);
 #ifdef CMDQ_USE_CCF
 		gCmdqDev.clk_gce = devm_clk_get(&pDevice->dev, "GCE");
 #endif				/* defined(CMDQ_USE_CCF) */
-#else
-		gCmdqDev.regBaseVA = (0L | GCE_BASE);
-		gCmdqDev.regBasePA = (0L | GCE_BASEPA_NO_OF);
-		gCmdqDev.irqId = CQ_DMA_IRQ_BIT_ID;
-		gCmdqDev.irqSecId = CQ_DMA_SEC_IRQ_BIT_ID;
 #endif
 
 		CMDQ_LOG
@@ -357,8 +455,8 @@ void cmdq_dev_init(struct platform_device *pDevice)
 	cmdq_dev_init_module_clk();
 	/* init module PA for instruction count */
 	cmdq_get_func()->initModulePAStat();
-	/* init module HW event */
-	cmdq_dev_init_module_HWEvent();
+	/* init load HW information from device tree */
+	cmdq_dev_init_device_tree(node);
 }
 
 void cmdq_dev_deinit(void)
