@@ -315,16 +315,27 @@ void spm_vcorefs_screen_on_setting(int dvfs_mode, u32 md_dvfs_req)
 	spm_write(SPM_SW_RSV_1, (spm_read(SPM_SW_RSV_1) & (~0xF)) | SPM_CLEAN_WAKE_EVENT_DONE);
 }
 
+void spm_mask_wakeup_event(int val)
+{
+	spm_write(SPM_SW_RSV_1, (spm_read(SPM_SW_RSV_1) & ~(1 << 5)) | (val << 5));
+	spm_write(SPM_SW_RSV_1, (spm_read(SPM_SW_RSV_1) & ~(1 << 7)) | (val << 7));
+}
+
 /*
  * SPM DVFS Function
  */
-int spm_set_vcore_dvfs(int opp, u32 md_dvfs_req)
+int spm_set_vcore_dvfs(int opp, u32 md_dvfs_req, int kicker, int user_opp)
 {
 	struct pwr_ctrl *pwrctrl = __spm_vcore_dvfs.pwrctrl;
 	unsigned long flags;
 	u8 dvfs_req;
 	u32 target_sta, req;
 	int t_dvfs = 0, t_progress = 0;
+
+	if (!is_vcorefs_fw(DYNAMIC_LOAD)) {
+		spm_vcorefs_crit("NOT VCORE F/W\n");
+		return 0;
+	}
 
 	spin_lock_irqsave(&__spm_lock, flags);
 
@@ -377,9 +388,19 @@ int spm_set_vcore_dvfs(int opp, u32 md_dvfs_req)
 			BUG();
 		}
 
+		if (kicker == KIR_REESPI || kicker == KIR_TEESPI) {
+			if (user_opp == OPPI_PERF)
+				spm_mask_wakeup_event(1);
+			else
+				spm_mask_wakeup_event(0);
+		}
+
 		spm_vcorefs_crit("req: 0x%x, target: 0x%x, t_dvfs: %d(%d)\n",
 								dvfs_req, target_sta, t_dvfs, t_progress);
 	} else {
+		if (kicker == KIR_REESPI || kicker == KIR_TEESPI)
+			spm_mask_wakeup_event(0);
+
 		spm_vcorefs_crit("req: 0x%x, target: 0x%x\n", dvfs_req, target_sta);
 	}
 

@@ -279,6 +279,19 @@ void __spm_reset_and_init_pcm(const struct pcm_desc *pcmdesc)
 }
 
 #elif defined(CONFIG_ARCH_MT6797)
+void spm_vcorefs_spi_check(void)
+{
+	int retry = 0, timeout = 100000;
+
+	while (kicker_table[KIR_REESPI] == OPP_0 || kicker_table[KIR_TEESPI] == OPP_0) {
+		if (retry > timeout)
+			BUG();
+
+		udelay(1);
+		retry++;
+	}
+}
+
 void __spm_reset_and_init_pcm(const struct pcm_desc *pcmdesc)
 {
 	u32 con1;
@@ -297,7 +310,6 @@ void __spm_reset_and_init_pcm(const struct pcm_desc *pcmdesc)
 			spm_write(SPM_WAKEUP_EVENT_MASK, (con1 & ~(0x1)));
 
 			/* don't change vcore and dram when dvfs enable reture false */
-			spm_write(SPM_SW_RSV_1, (spm_read(SPM_SW_RSV_1) & ~(1 << 7)) | (dvfs_en << 7));
 			spm_write(SPM_SW_RSV_1, (spm_read(SPM_SW_RSV_1) & (~0xF)) | SPM_OFFLOAD);
 			spm_write(SPM_CPU_WAKEUP_EVENT, 1);
 
@@ -319,6 +331,9 @@ void __spm_reset_and_init_pcm(const struct pcm_desc *pcmdesc)
 					udelay(1);
 					retry++;
 				}
+
+				if (!is_vcorefs_fw(1))
+					spm_vcorefs_spi_check();
 			}
 
 #if SPM_AEE_RR_REC
@@ -327,7 +342,6 @@ void __spm_reset_and_init_pcm(const struct pcm_desc *pcmdesc)
 			spm_write(SPM_CPU_WAKEUP_EVENT, 0);
 			spm_write(SPM_WAKEUP_EVENT_MASK, con1);
 			spm_write(SPM_SW_RSV_1, (spm_read(SPM_SW_RSV_1) & (~0xF)) | SPM_CLEAN_WAKE_EVENT_DONE);
-			spm_write(SPM_SW_RSV_1, (spm_read(SPM_SW_RSV_1) & ~(1 << 7)));
 		}
 
 		/* backup mem control from r0 to POWER_ON_VAL0 */
@@ -369,6 +383,41 @@ void __spm_reset_and_init_pcm(const struct pcm_desc *pcmdesc)
 		  SPM_SRAM_ISOINT_B_LSB | SPM_SRAM_SLEEP_B_LSB |
 		  (pcmdesc->replace ? 0 : IM_NONRP_EN_LSB) |
 		  MIF_APBEN_LSB | SCP_APB_INTERNAL_EN_LSB);
+}
+
+bool is_vcorefs_fw(bool dynamic_load)
+{
+	struct pcm_desc *pcmdesc;
+	u32 ptr, len;
+
+	if (dynamic_load) {
+		u32 vcorefs_idx = spm_get_pcm_vcorefs_index();
+
+		if (dyna_load_pcm[vcorefs_idx].ready) {
+			pcmdesc = &(dyna_load_pcm[vcorefs_idx].desc);
+		} else {
+			pr_err("[%s] dyna load F/W fail\n", __func__);
+			BUG();
+		}
+	} else {
+		pcmdesc = __spm_vcore_dvfs.pcmdesc;
+	}
+
+	/* tell IM where is PCM code (use slave mode if code existed) */
+	if (pcmdesc->base_dma) {
+		ptr = pcmdesc->base_dma;
+		/* for 4GB mode */
+		if (enable_4G())
+			MAPPING_DRAM_ACCESS_ADDR(ptr);
+	} else {
+		ptr = base_va_to_pa(pcmdesc->base);
+	}
+	len = pcmdesc->size - 1;
+
+	if (spm_read(PCM_IM_PTR) != ptr || spm_read(PCM_IM_LEN) != len)
+		return false;
+	else
+		return true;
 }
 #endif
 
@@ -856,7 +905,10 @@ void __spm_sync_vcore_dvfs_power_control(struct pwr_ctrl *dest_pwr_ctrl, const s
 void __spm_backup_vcore_dvfs_dram_shuffle(void)
 {
 #ifdef SPM_VCORE_EN_MT6797
-	spm_write(SPM_SW_RSV_5, (spm_read(SPM_SW_RSV_5)&~(0x3 << 23)) | (0x2 << 23));
+	u32 shuf;
+
+	shuf = spm_read(PCM_REG6_DATA) & (0x3 << 23);
+	spm_write(SPM_SW_RSV_5, (spm_read(SPM_SW_RSV_5) & ~(0x3 << 23)) | shuf);
 #endif
 }
 
