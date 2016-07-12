@@ -1,19 +1,15 @@
-#ifndef __DISP_SESSION_H
-#define __DISP_SESSION_H
-
-#define DISP_SESSION_DEVICE	"mtk_disp_mgr"
-
+/**
+ * NOTICE:
+ * MUST BE consistent with bionic/libc/kernel/common/linux/disp_svp.h
+ */
+#ifndef __DISP_SVP_H
+#define __DISP_SVP_H
 
 #define DISP_NO_ION_FD                 ((int)(~0U>>1))
 #define DISP_NO_USE_LAEYR_ID           ((int)(~0U>>1))
 
+#define MAX_INPUT_CONFIG		4
 #define MAKE_DISP_FORMAT_ID(id, bpp)  (((id) << 8) | (bpp))
-#define DISP_SESSION_MODE(id) (((id)>>24)&0xff)
-#define DISP_SESSION_TYPE(id) (((id)>>16)&0xff)
-#define DISP_SESSION_DEV(id) ((id)&0xff)
-#define MAKE_DISP_SESSION(type, dev) (unsigned int)((type)<<16 | (dev))
-
-
 
 /* /============================================================================= */
 /* structure declarations */
@@ -60,15 +56,28 @@ typedef enum {
 	DISP_FORMAT_ABGR8888 = MAKE_DISP_FORMAT_ID(5, 4),
 	DISP_FORMAT_RGBA8888 = MAKE_DISP_FORMAT_ID(6, 4),
 	DISP_FORMAT_BGRA8888 = MAKE_DISP_FORMAT_ID(7, 4),
-	DISP_FORMAT_YUV422 = MAKE_DISP_FORMAT_ID(8, 2),
-	DISP_FORMAT_XRGB8888 = MAKE_DISP_FORMAT_ID(9, 4),
-	DISP_FORMAT_XBGR8888 = MAKE_DISP_FORMAT_ID(10, 4),
-	DISP_FORMAT_RGBX8888 = MAKE_DISP_FORMAT_ID(11, 4),
-	DISP_FORMAT_BGRX8888 = MAKE_DISP_FORMAT_ID(12, 4),
+	DISP_FORMAT_XRGB8888 = MAKE_DISP_FORMAT_ID(8, 4),
+	DISP_FORMAT_XBGR8888 = MAKE_DISP_FORMAT_ID(9, 4),
+	/* Packed YUV Formats */
+	DISP_FORMAT_YUV444 = MAKE_DISP_FORMAT_ID(10, 3),
+	DISP_FORMAT_YVYU = MAKE_DISP_FORMAT_ID(11, 2),	/* Same as UYVY, but replace Y/U/V */
+	DISP_FORMAT_VYUY = MAKE_DISP_FORMAT_ID(12, 2),
 	DISP_FORMAT_UYVY = MAKE_DISP_FORMAT_ID(13, 2),
-	DISP_FORMAT_YUV420_P = MAKE_DISP_FORMAT_ID(14, 2),
+	DISP_FORMAT_Y422 = MAKE_DISP_FORMAT_ID(13, 2),
+	DISP_FORMAT_YUYV = MAKE_DISP_FORMAT_ID(14, 2),	/* Same as UYVY but replace U/V */
+	DISP_FORMAT_YUY2 = MAKE_DISP_FORMAT_ID(14, 2),
+	DISP_FORMAT_YUV422 = MAKE_DISP_FORMAT_ID(14, 2),	/* Will be removed */
+	DISP_FORMAT_GREY = MAKE_DISP_FORMAT_ID(15, 1),	/* Single Y plane */
+	DISP_FORMAT_Y800 = MAKE_DISP_FORMAT_ID(15, 1),
+	DISP_FORMAT_Y8 = MAKE_DISP_FORMAT_ID(15, 1),
+	/* Planar YUV Formats */
 	DISP_FORMAT_YV12 = MAKE_DISP_FORMAT_ID(16, 1),	/* BPP = 1.5 */
-	DISP_FORMAT_BPP_MASK = 0xFF,
+	DISP_FORMAT_I420 = MAKE_DISP_FORMAT_ID(17, 1),	/* Same as YV12 but replace U/V */
+	DISP_FORMAT_IYUV = MAKE_DISP_FORMAT_ID(17, 1),
+	DISP_FORMAT_NV12 = MAKE_DISP_FORMAT_ID(18, 1),	/* BPP = 1.5 */
+	DISP_FORMAT_NV21 = MAKE_DISP_FORMAT_ID(19, 1),	/* Same as NV12 but replace U/V */
+
+	DISP_FORMAT_BPP_MASK = 0xFFFF,
 } DISP_FORMAT;
 
 typedef enum {
@@ -86,21 +95,12 @@ typedef enum {
 typedef enum {
 	/* normal memory */
 	DISP_NORMAL_BUFFER = 0,
-	/* normal memory but should not be dumpped within screenshot */
-	DISP_PROTECT_BUFFER = 1,
 	/* secure memory */
-	DISP_SECURE_BUFFER = 2,
-	DISP_SECURE_BUFFER_SHIFT = 0x10002
+	DISP_SECURE_BUFFER = 1,
+	/* normal memory but should not be dumpped within screenshot */
+	DISP_PROTECT_BUFFER = 2,
+	DISP_SECURE_BUFFER_SHIFT = 0x10001
 } DISP_BUFFER_TYPE;
-
-typedef enum {
-	/* ion buffer */
-	DISP_BUFFER_ION = 0,
-	/* dim layer, const alpha */
-	DISP_BUFFER_ALPHA = 1,
-	/* mva buffer */
-	DISP_BUFFER_MVA = 2,
-} DISP_BUFFER_SOURCE;
 
 typedef enum {
 	DISP_ALPHA_ONE = 0,
@@ -116,13 +116,6 @@ typedef enum {
 } DISP_SESSION_TYPE;
 
 typedef enum {
-	DISP_YUV_BT601_FULL = 0,
-	DISP_YUV_BT601 = 1,
-	DISP_YUV_BT709 = 2
-} DISP_YUV_RANGE_ENUM;
-
-typedef enum {
-	DISP_INVALID_SESSION_MODE = 0,
 	/* single output */
 	DISP_SESSION_DIRECT_LINK_MODE = 1,
 	DISP_SESSION_DECOUPLE_MODE = 2,
@@ -130,26 +123,7 @@ typedef enum {
 	/* two ouputs */
 	DISP_SESSION_DIRECT_LINK_MIRROR_MODE = 3,
 	DISP_SESSION_DECOUPLE_MIRROR_MODE = 4,
-
-	DISP_SESSION_RDMA_MODE,
-	DISP_SESSION_MODE_NUM,
-
 } DISP_MODE;
-
-typedef enum {
-	SESSION_USER_INVALID = -1,
-	SESSION_USER_HWC = 0,
-	SESSION_USER_GUIEXT = 1,
-	SESSION_USER_AEE = 2,
-	SESSION_USER_PANDISP = 3,
-	SESSION_USER_CNT,
-} DISP_SESSION_USER;
-
-typedef enum {
-	DISP_OUTPUT_UNKNOWN = 0,
-	DISP_OUTPUT_MEMORY = 1,
-	DISP_OUTPUT_DECOUPLE = 2,
-} DISP_DC_TYPE;
 
 typedef enum {
 	TRIGGER_NORMAL,
@@ -158,16 +132,11 @@ typedef enum {
 
 	TRIGGER_MODE_MAX_NUM
 } EXTD_TRIGGER_MODE;
-
 typedef struct disp_session_config_t {
 	DISP_SESSION_TYPE type;
 	unsigned int device_id;
 	DISP_MODE mode;
 	unsigned int session_id;
-	DISP_SESSION_USER user;
-	unsigned int present_fence_idx;
-	DISP_DC_TYPE dc_type;
-	int need_merge;
 	EXTD_TRIGGER_MODE tigger_mode;
 } disp_session_config;
 
@@ -175,13 +144,12 @@ typedef struct {
 	unsigned int session_id;
 	unsigned int vsync_cnt;
 	long int vsync_ts;
-	int lcm_fps;
 } disp_session_vsync_config;
 
 typedef struct disp_input_config_t {
 	unsigned int layer_id;
 	unsigned int layer_enable;
-	DISP_BUFFER_SOURCE buffer_source;
+
 	void *src_base_addr;
 	void *src_phy_addr;
 	unsigned int src_direct_link;
@@ -209,13 +177,11 @@ typedef struct disp_input_config_t {
 	unsigned int sur_aen;
 	DISP_ALPHA_TYPE src_alpha;
 	DISP_ALPHA_TYPE dst_alpha;
-	unsigned int frm_sequence;
-	DISP_YUV_RANGE_ENUM yuv_range;
 } disp_input_config;
 
 typedef struct disp_output_config_t {
-	void *va;
-	void *pa;
+	unsigned int va;
+	unsigned int pa;
 	DISP_FORMAT fmt;
 	unsigned int x;
 	unsigned int y;
@@ -225,15 +191,14 @@ typedef struct disp_output_config_t {
 	unsigned int pitchUV;
 	DISP_BUFFER_TYPE security;
 	unsigned int buff_idx;
-	unsigned int interface_idx;
-	unsigned int frm_sequence;
 } disp_output_config;
 
+#define MAX_INPUT_CONFIG 4
+
 typedef struct disp_session_input_config_t {
-	DISP_SESSION_USER setter;
 	unsigned int session_id;
 	unsigned int config_layer_num;
-	disp_input_config config[8];
+	disp_input_config config[MAX_INPUT_CONFIG];
 } disp_session_input_config;
 
 typedef struct disp_session_output_config_t {
@@ -245,30 +210,6 @@ typedef struct disp_session_layer_num_config_t {
 	unsigned int session_id;
 	unsigned int max_layer_num;
 } disp_session_layer_num_config;
-
-struct disp_frame_cfg_t {
-	DISP_SESSION_USER setter;
-	unsigned int session_id;
-
-	/* input config */
-	unsigned int input_layer_num;
-	disp_input_config input_cfg[8];
-	unsigned int overlap_layer_num;
-
-	/* constant layer */
-	unsigned int const_layer_num;
-	disp_input_config const_layer[1];
-
-	/* output config */
-	int output_en;
-	disp_output_config output_cfg;
-
-	/* trigger config */
-	DISP_MODE mode;
-	unsigned int present_fence_idx;
-	EXTD_TRIGGER_MODE tigger_mode;
-	DISP_SESSION_USER user;
-};
 
 typedef struct disp_session_info_t {
 	unsigned int session_id;
@@ -283,10 +224,6 @@ typedef struct disp_session_info_t {
 	unsigned int physicalWidth;
 	unsigned int physicalHeight;
 	unsigned int isConnected;
-	unsigned int isHDCPSupported;
-	unsigned int isOVLDisabled;
-	unsigned int is3DSupport;
-	unsigned int const_layer_num;
 } disp_session_info;
 
 typedef struct disp_buffer_info_t {
@@ -300,58 +237,7 @@ typedef struct disp_buffer_info_t {
 	/* Output */
 	unsigned int index;
 	int fence_fd;
-	unsigned int interface_index;
-	int interface_fence_fd;
 } disp_buffer_info;
-
-typedef struct disp_present_fence_info_t {
-	/* input */
-	unsigned int session_id;
-	/* output */
-	unsigned int present_fence_fd;
-	unsigned int present_fence_index;
-} disp_present_fence;
-
-typedef struct disp_present_fence_t {
-	/* Session */
-	unsigned int session_id;
-
-	/* Output */
-	unsigned int index;
-	int fence_fd;
-} disp_present_fence_info;
-
-typedef enum {
-	DISP_OUTPUT_CAP_DIRECT_LINK = 0,
-	DISP_OUTPUT_CAP_DECOUPLE,
-	DISP_OUTPUT_CAP_SWITCHABLE,
-} DISP_CAP_OUTPUT_MODE;
-
-typedef enum {
-	DISP_OUTPUT_CAP_SINGLE_PASS = 0,
-	DISP_OUTPUT_CAP_MULTI_PASS,
-} DISP_CAP_OUTPUT_PASS;
-
-typedef enum {
-	DISP_FEATURE_TIME_SHARING = 0x00000001,
-} DISP_FEATURE;
-
-typedef struct disp_caps_t {
-	DISP_CAP_OUTPUT_MODE output_mode;
-	DISP_CAP_OUTPUT_PASS output_pass;
-	unsigned int max_layer_num;
-#ifdef CONFIG_FOR_SOURCE_PQ
-	unsigned int max_pq_num;
-#endif
-	unsigned int disp_feature;
-	int is_support_frame_cfg_ioctl;
-} disp_caps_info;
-
-typedef struct disp_session_buf_t {
-	unsigned int session_id;
-	unsigned int buf_hnd[3];
-} disp_session_buf_info;
-
 /* IOCTL commands. */
 #define DISP_IOW(num, dtype)     _IOW('O', num, dtype)
 #define DISP_IOR(num, dtype)     _IOR('O', num, dtype)
@@ -362,26 +248,18 @@ typedef struct disp_session_buf_t {
 #define	DISP_IOCTL_CREATE_SESSION				DISP_IOW(201, disp_session_config)
 #define	DISP_IOCTL_DESTROY_SESSION				DISP_IOW(202, disp_session_config)
 #define	DISP_IOCTL_TRIGGER_SESSION				DISP_IOW(203, disp_session_config)
-#define	DISP_IOCTL_PREPARE_INPUT_BUFFER			DISP_IOW(204, disp_buffer_info)
-#define	DISP_IOCTL_PREPARE_OUTPUT_BUFFER		DISP_IOW(205, disp_buffer_info)
-#define	DISP_IOCTL_SET_INPUT_BUFFER				DISP_IOW(206, disp_session_input_config)
-#define	DISP_IOCTL_SET_OUTPUT_BUFFER			DISP_IOW(207, disp_session_output_config)
+#define DISP_IOCTL_PREPARE_INPUT_BUFFER			DISP_IOW(204, disp_buffer_info)
+#define DISP_IOCTL_PREPARE_OUTPUT_BUFFER		DISP_IOW(205, disp_buffer_info)
+#define DISP_IOCTL_SET_INPUT_BUFFER			DISP_IOW(206, disp_session_input_config)
+#define DISP_IOCTL_SET_OUTPUT_BUFFER			DISP_IOW(207, disp_session_output_config)
 #define	DISP_IOCTL_GET_SESSION_INFO				DISP_IOW(208, disp_session_info)
 
-
-#define	DISP_IOCTL_SET_SESSION_MODE				DISP_IOW(209, disp_session_config)
-#define	DISP_IOCTL_GET_SESSION_MODE				DISP_IOW(210, disp_session_config)
+#define	DISP_IOCTL_SET_SESSION_MODE			    DISP_IOW(209, disp_session_config)
+#define	DISP_IOCTL_GET_SESSION_MODE			    DISP_IOW(210, disp_session_config)
 #define	DISP_IOCTL_SET_SESSION_TYPE				DISP_IOW(211, disp_session_config)
 #define	DISP_IOCTL_GET_SESSION_TYPE				DISP_IOW(212, disp_session_config)
 #define	DISP_IOCTL_WAIT_FOR_VSYNC				DISP_IOW(213, disp_session_vsync_config)
 #define	DISP_IOCTL_SET_MAX_LAYER_NUM			DISP_IOW(214, disp_session_layer_num_config)
-#define	DISP_IOCTL_SET_VSYNC_FPS				DISP_IOW(215, unsigned int)
 
-#define		DISP_IOCTL_GET_PRESENT_FENCE			DISP_IOW(216, disp_present_fence)
 
-#define DISP_IOCTL_GET_IS_DRIVER_SUSPEND		DISP_IOW(217, unsigned int)
-#define DISP_IOCTL_GET_DISPLAY_CAPS			DISP_IOW(218, disp_caps_info)
-#define DISP_IOCTL_INSERT_SESSION_BUFFERS			DISP_IOW(219, disp_session_buf_info)
-#define	DISP_IOCTL_FRAME_CONFIG			DISP_IOW(220, disp_session_output_config)
-
-#endif				/* __DISP_SESSION_H */
+#endif				/* __DISP_SVP_H */
