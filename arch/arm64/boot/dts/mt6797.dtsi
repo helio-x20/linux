@@ -774,6 +774,7 @@
 			vcn33_bt-supply = <&mt_pmic_vcn33_bt_ldo_reg>;
 			vcn33_wifi-supply = <&mt_pmic_vcn33_wifi_ldo_reg>;
 			mhl_12v-supply = <&mt_pmic_vgp3_ldo_reg>;
+			vldo28-supply = <&mt_pmic_vldo28_ldo_reg>;
 		};
 /* End of regulators_supply */
 	};

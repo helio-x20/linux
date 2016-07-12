@@ -345,4 +345,5 @@ const struct HDMI_DRIVER *HDMI_GetDriver(void);
 void Notify_AP_MHL_TX_Event(unsigned int event, unsigned int event_param, void *param);
 extern int	chip_device_id;
 extern bool need_reset_usb_switch;
+extern struct device *ext_dev_context;
 #endif				/* __HDMI_DRV_H__ */

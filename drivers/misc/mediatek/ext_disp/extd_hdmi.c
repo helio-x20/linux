@@ -137,6 +137,15 @@ struct task_struct *hdmi_fence_release_task = NULL;
 wait_queue_head_t hdmi_fence_release_wq;
 atomic_t hdmi_fence_release_event = ATOMIC_INIT(0);
 
+/*#define HDMI_OPEN_PACAKAGE_SUPPORT*/
+
+#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+struct task_struct *hdmi_para_config_task = NULL;
+wait_queue_head_t hdmi_para_config_wq;
+atomic_t hdmi_para_config_event = ATOMIC_INIT(0);
+#endif
+
+
 struct task_struct *hdmi_wait_vsync_task = NULL;
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
@@ -397,7 +406,10 @@ int hdmi_get_support_info(void)
 #endif
 
 #ifdef MTK_AUDIO_MULTI_CHANNEL_SUPPORT
-	temp = hdmi_drv->get_external_device_capablity();
+	if (hdmi_drv->get_external_device_capablity != NULL)
+		temp = hdmi_drv->get_external_device_capablity();
+	else
+		temp = 0x2 << 3;
 #else
 	temp = 0x2 << 3;
 #endif
@@ -515,6 +527,28 @@ static void _hdmi_rdma_irq_handler(DISP_MODULE_ENUM module, unsigned int param)
 	if (param & 0x4 && first_frame_done == 0)
 		first_frame_done = 1;
 }
+
+#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+static int hdmi_para_config_kthread(void *data)
+{
+
+	struct sched_param param = {.sched_priority = 94 }; /*RTPM_PRIO_SCRN_UPDATE*/
+
+	sched_setscheduler(current, SCHED_RR, &param);
+	for (;;) {
+
+		wait_event_interruptible(hdmi_para_config_wq, atomic_read(&hdmi_para_config_event));
+		atomic_set(&hdmi_para_config_event, 0);
+
+		hdmi_set_resolution(HDMI_VIDEO_1280x720p_60Hz);
+
+		if (kthread_should_stop())
+			break;
+	}
+
+	return 0;
+}
+#endif
 
 static int hdmi_fence_release_kthread(void *data)
 {
@@ -667,6 +701,14 @@ static enum HDMI_STATUS hdmi_drv_init(void)
 		wake_up_process(hdmi_fence_release_task);
 	}
 
+#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+	if (!hdmi_para_config_task) {
+		hdmi_para_config_task = kthread_create(hdmi_para_config_kthread,
+							NULL, "hdmi_fence_release_kthread");
+		wake_up_process(hdmi_para_config_task);
+	}
+#endif
+
 	if (!hdmi_3d_config_task) {
 		hdmi_3d_config_task = kthread_create(hdmi_3d_config_kthread, NULL, "hdmi_3d_config_kthread");
 		wake_up_process(hdmi_3d_config_task);
@@ -732,6 +774,7 @@ static void hdmi_state_reset(void)
 	rdmafpscnt = 0;
 	up(&hdmi_update_mutex);
 
+	hdmi_reschange = HDMI_VIDEO_RESOLUTION_NUM;
 	MMProfileLogEx(ddp_mmp_get_events()->Extd_State, MMProfileFlagEnd, Plugout, 0);
 }
 
@@ -789,6 +832,14 @@ static void hdmi_state_reset(void)
 			hdmi_state_reset();
 		}
 	}
+
+#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+	if (hdmi_drv->get_state() == HDMI_STATE_ACTIVE) {
+		atomic_set(&hdmi_para_config_event, 1);
+		wake_up_interruptible(&hdmi_para_config_wq);
+	}
+#endif
+
 }
 
 /*static*/ void hdmi_power_off(void)
@@ -1002,6 +1053,11 @@ void hdmi_state_callback(enum HDMI_STATE state)
 			ged_dvfs_vsync_offset_event_switch(GED_DVFS_VSYNC_OFFSET_MHL_EVENT, true);
 #endif
 			HDMI_LOG("[hdmi]%s, state = %d out!\n", __func__, state);
+
+#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+			atomic_set(&hdmi_para_config_event, 1);
+			wake_up_interruptible(&hdmi_para_config_wq);
+#endif
 			break;
 		}
 	default:
@@ -1035,6 +1091,9 @@ int hdmi_enable(int enable)
 			hdmi_drv->enter();
 
 		hdmi_drv_init();
+#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+		p->is_enabled = true;
+#endif
 		hdmi_power_on();
 		p->is_enabled = true;
 	} else {
@@ -1059,6 +1118,10 @@ int hdmi_power_enable(int enable)
 {
 	HDMI_FUNC();
 	if (!p->is_enabled) {
+
+#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+		hdmi_enable(true);
+#endif
 		HDMI_LOG("return in %d\n", __LINE__);
 		return 0;
 	}
@@ -1487,12 +1550,15 @@ int hdmi_post_init(void)
 		return -1;
 	}
 
-	hdmi_drv->set_util_funcs(&hdmi_utils);
+	if (hdmi_drv->set_util_funcs != NULL)
+		hdmi_drv->set_util_funcs(&hdmi_utils);
 
 	hdmi_params->init_config.vformat = HDMI_VIDEO_1280x720p_60Hz;
-	hdmi_drv->get_params(hdmi_params);
+	if (hdmi_drv->get_params != NULL)
+		hdmi_drv->get_params(hdmi_params);
 
-	hdmi_drv->init();	/* need to remove to power on function Donglei */
+	if (hdmi_drv->init != NULL)
+		hdmi_drv->init();	/* need to remove to power on function Donglei */
 	if (hdmi_drv->register_callback != NULL) {
 		boot_mode = (int)get_boot_mode();
 		if (boot_mode == FACTORY_BOOT || boot_mode == ATE_FACTORY_BOOT) {
@@ -1516,6 +1582,9 @@ int hdmi_post_init(void)
 
 	init_waitqueue_head(&hdmi_3d_config_wq);
 
+#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+	init_waitqueue_head(&hdmi_para_config_wq);
+#endif
 	Extd_DBG_Init();
 	return 0;
 }

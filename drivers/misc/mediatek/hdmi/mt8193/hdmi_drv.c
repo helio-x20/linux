@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/workqueue.h>
@@ -28,7 +28,7 @@
 #include <linux/earlysuspend.h>
 #endif
 #include <linux/platform_device.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -72,7 +72,11 @@
 /*----------------------------------------------------------------------------*/
 /* Debug message defination */
 /*----------------------------------------------------------------------------*/
-
+/*#define HDMI_OPEN_PACAKAGE_SUPPORT*/
+#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+#include <linux/pinctrl/consumer.h>
+char *power_pin_name[2] = {"power_default", "power_up"};
+#endif
 /*----------------------------------------------------------------------------*/
 /* HDMI Timer */
 /*----------------------------------------------------------------------------*/
@@ -294,7 +298,7 @@ static void mt8193_resume(void)
 /*----------------------------------------------------------------------------*/
 
 static int mt8193_video_config(enum HDMI_VIDEO_RESOLUTION vformat, enum HDMI_VIDEO_INPUT_FORMAT vin,
-			       enum HDMI_VIDEO_OUTPUT_FORMAT vout)
+			       int vout)
 {
 	HDMI_DEF_LOG("[hdmi]mt8193_video_config:%d\n", vformat);
 
@@ -378,9 +382,14 @@ void mt8193_set_mode(unsigned char ucMode)
 
 int mt8193_power_on(void)
 {
+#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+	int ret = 0;
+	struct pinctrl *power_pinctrl;
+	struct pinctrl_state *pin_state;
+#else
 	struct device_node *dn;
 	int bus_switch_pin;
-
+#endif
 	HDMI_DEF_LOG("[hdmi]mt8193_power_on_\n");
 
 	if (hdmi_powerenable == 1) {
@@ -402,10 +411,29 @@ int mt8193_power_on(void)
 	mt_set_gpio_out(GPIO_HDMI_POWER_CONTROL, GPIO_OUT_ONE);
 	HDMI_DEF_LOG("[hdmi]hdmi_5v_on\n");
 #endif
-
+#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+	if (ext_dev_context == NULL) {
+		pr_err("Cannot find ext_dev_context!\n");
+		return 0;
+	}
+	power_pinctrl = devm_pinctrl_get(ext_dev_context);
+	if (IS_ERR(power_pinctrl)) {
+		ret = PTR_ERR(power_pinctrl);
+		pr_err("Cannot find mt8193 power pinctrl!\n");
+		return 0;
+	}
+	pin_state = pinctrl_lookup_state(power_pinctrl, power_pin_name[1]);
+	if (IS_ERR(pin_state)) {
+		ret = PTR_ERR(pin_state);
+		pr_err("Cannot find mt8193 power pin state!\n");
+		return 0;
+	}
+	pinctrl_select_state(power_pinctrl, pin_state);
+#else
 	dn = of_find_compatible_node(NULL, NULL, "mediatek,mt8193-hdmi");
 	bus_switch_pin = of_get_named_gpio(dn, "hdmi_power_gpios", 0);
 	gpio_direction_output(bus_switch_pin, 1);
+#endif
 
 	vWriteHdmiSYSMsk(HDMI_PWR_CTRL, hdmi_power_turnon, hdmi_power_turnon);
 	vWriteHdmiSYSMsk(HDMI_SYS_PWR_RST_B, hdmi_pwr_sys_sw_unreset, hdmi_pwr_sys_sw_unreset);
@@ -430,9 +458,14 @@ int mt8193_power_on(void)
 
 void mt8193_power_off(void)
 {
+#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+	int ret = 0;
+	struct pinctrl *power_pinctrl;
+	struct pinctrl_state *pin_state;
+#else
 	struct device_node *dn;
 	int bus_switch_pin;
-
+#endif
 	HDMI_DEF_LOG("[hdmi]mt8193_power_off\n");
 	if (hdmi_powerenable == 0) {
 		HDMI_DEF_LOG("[hdmi]already power off, return\n");
@@ -459,10 +492,29 @@ void mt8193_power_off(void)
 	mt_set_gpio_out(GPIO_HDMI_POWER_CONTROL, GPIO_OUT_ZERO);
 	HDMI_DEF_LOG("[hdmi]hdmi_5v_off\n");
 #endif
-
+#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+	if (ext_dev_context == NULL) {
+		pr_err("Cannot find ext_dev_context!\n");
+		return;
+	}
+	power_pinctrl = devm_pinctrl_get(ext_dev_context);
+	if (IS_ERR(power_pinctrl)) {
+		ret = PTR_ERR(power_pinctrl);
+		pr_err("Cannot find mt8193 power pinctrl! ret = %d\n", ret);
+		return;
+	}
+	pin_state = pinctrl_lookup_state(power_pinctrl, power_pin_name[0]);
+	if (IS_ERR(pin_state)) {
+		ret = PTR_ERR(pin_state);
+		pr_err("Cannot find mt8193 power pin state! ret = %d\n", ret);
+		return;
+	}
+	pinctrl_select_state(power_pinctrl, pin_state);
+#else
 	dn = of_find_compatible_node(NULL, NULL, "mediatek,mt8193-hdmi");
 	bus_switch_pin = of_get_named_gpio(dn, "hdmi_power_gpios", 0);
 	gpio_direction_output(bus_switch_pin, 0);
+#endif
 
 	vWriteHdmiSYSMsk(HDMI_PWR_CTRL, hdmi_clock_off, hdmi_clock_off);
 	vWriteHdmiSYSMsk(HDMI_PWR_CTRL, hdmi_iso_en, hdmi_iso_en);
