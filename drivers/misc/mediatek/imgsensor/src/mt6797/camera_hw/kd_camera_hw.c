@@ -20,6 +20,8 @@
 #include <linux/fs.h>
 #include <asm/atomic.h>
 #include <mt_chip.h>
+//#include <mt-plat/mt_gpio.h>
+//#include <mach/gpio_const.h>
 
 #include "kd_camera_typedef.h"
 #include "kd_imgsensor.h"
@@ -50,7 +52,7 @@
 
 #define IDX_PS_CMRST 0
 #define IDX_PS_CMPDN 4
-
+//#define  GPIO63   63|0x80000000
 
 extern void ISP_MCLK1_EN(BOOL En);
 extern void ISP_MCLK2_EN(BOOL En);
@@ -361,12 +363,28 @@ struct pinctrl_state *cam_ldo_sub_vcamd_l = NULL;
 struct pinctrl_state *cam_ldo_main2_vcamd_h = NULL;/* for MAIN2_DVDD */
 struct pinctrl_state *cam_ldo_main2_vcamd_l = NULL;
 
+#if 0
+static void gpio_set(unsigned long pin,unsigned long mode,unsigned long dir)
+{
+	mt_set_gpio_mode(pin,mode);
+    mt_set_gpio_dir(pin,dir);
+}
+
+static void init_GPIO(void)
+{
+	
+	gpio_set(GPIO63,GPIO_MODE_00,GPIO_DIR_OUT);
+	
+	mt_set_gpio_out(GPIO63,GPIO_OUT_ONE);
+	
+} 
+#endif
 
 int mtkcam_gpio_init(struct platform_device *pdev)
 {
 	int ret = 0;
 	int ver = 0;
-
+//	init_GPIO();
 	camctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(camctrl)) {
 		dev_err(&pdev->dev, "Cannot find camera pinctrl!");
@@ -568,8 +586,8 @@ int mtkcam_gpio_set(int PinIdx, int PwrType, int Val)
 					PK_ERR("Please check AVDD pin control\n");
 
 				mAVDD_usercounter = 0;
-				pinctrl_select_state(camctrl, cam_ldo_vcama_l);
-			}
+			//	pinctrl_select_state(camctrl, cam_ldo_vcama_l);   ////by zhaowan  del,2016/07/18
+			} 
 			
 		}
 		else if (Val == 1 && !IS_ERR(cam_ldo_vcama_h)){
@@ -589,7 +607,7 @@ int mtkcam_gpio_set(int PinIdx, int PwrType, int Val)
 					PK_ERR("Please check DVDD pin control\n");
 
 				mDVDD_usercounter = 0;
-				pinctrl_select_state(camctrl, cam_ldo_vcamd_l);
+			//	pinctrl_select_state(camctrl, cam_ldo_vcamd_l);  //by zhaowan del,2016/07/18
 			}
 		}
 		else if (Val == 1 && !IS_ERR(cam_ldo_vcamd_h))
@@ -604,6 +622,7 @@ int mtkcam_gpio_set(int PinIdx, int PwrType, int Val)
 	case SUB_DVDD:
 	default:
 		PK_ERR("PwrType(%d) is invalid !!\n", PwrType);
+		printk("by zhaowan PwrType(%d) is invalid !! \n",PwrType);
 		break;
 	};
 
