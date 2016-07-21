@@ -30,10 +30,14 @@
 		ranges = <0 0 0 0xffffffff>;
 
 		i2c0@11007000 {
+            /* Deleted start by wenshengfan,2016/5/23 */
+            /*
 			bq24261@6b {
 				compatible = "bq24261";
 				reg = <0x6b>;
 			};
+            */
+            /* Deleted end by wenshengfan,2016/5/23 */
 
 			mt6306@64 {
 				compatible = "mediatek,mt6306";
@@ -149,6 +153,10 @@
 		};
 	};
 
+	mt8193hdmi:mt8193hdmi@0 {
+		compatible = "mediatek,mt8193-hdmi";
+	};
+	
 	led0:led@0 {
 		compatible = "mediatek,red";
 		led_mode = <0>;
@@ -317,6 +325,87 @@
 	};
 };
 
+/*8193 hdmi 5v power pin*/
+
+&mhl {
+	pinctrl-names = "power_default", "power_up";
+	pinctrl-0 = <&mt8193hdmi_power_default>;
+	pinctrl-1 = <&mt8193hdmi_power_up>;
+	status = "okay";
+};
+
+&pio {
+	mt8193hdmi_power_default: 8193hdmi_power_def {
+		pins_cmd_dat {
+			pins = <PINMUX_GPIO195__FUNC_GPIO195>;
+			slew-rate = <1>;
+			bias-pull-up = <00>;
+			output-low;
+		};
+	};
+	mt8193hdmi_power_up: 8193hdmi_power_high {
+		pins_cmd_dat {
+			pins = <PINMUX_GPIO195__FUNC_GPIO195>;
+			slew-rate = <1>;
+			bias-pull-up = <00>;
+			output-high;
+		};
+	};
+};
+/*8193 hdmi 5v power pin end*/
+
+&multibridge {
+	pinctrl-names = "rst_default", "rst_high";
+	pinctrl-0 = <&mt8193hdmi_rst_default>;
+	pinctrl-1 = <&mt8193hdmi_rst_high>;
+	status = "okay";
+};
+
+&pio {
+	mt8193hdmi_rst_default: 8193hdmi_rst_def {
+		pins_cmd_dat {
+			pins = <PINMUX_GPIO193__FUNC_GPIO193>;
+			slew-rate = <1>;
+			bias-pull-up = <00>;
+			output-low;
+		};
+	};
+	mt8193hdmi_rst_high: 8193hdmi_rst_high {
+		pins_cmd_dat {
+			pins = <PINMUX_GPIO193__FUNC_GPIO193>;
+			slew-rate = <1>;
+			bias-pull-up = <00>;
+			output-high;
+		};
+	};
+};
+/*8193 dpi pin default*/
+&dispsys {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dpi_pins_default>;
+	status = "okay";
+};
+
+&pio {
+	dpi_pins_default: hdmi_dpi_pins {
+		pins_dpi_dat {
+			pins = <PINMUX_GPIO43__FUNC_DPI_D4>,
+			<PINMUX_GPIO44__FUNC_DPI_D5>,
+			<PINMUX_GPIO45__FUNC_DPI_D6>,
+			<PINMUX_GPIO46__FUNC_DPI_D7>,
+			<PINMUX_GPIO47__FUNC_DPI_D8>,
+			<PINMUX_GPIO48__FUNC_DPI_D9>,
+			<PINMUX_GPIO49__FUNC_DPI_D10>,
+			<PINMUX_GPIO50__FUNC_DPI_D11>,
+			<PINMUX_GPIO52__FUNC_DPI_CK>,
+			<PINMUX_GPIO70__FUNC_I2S3_BCK>,
+			<PINMUX_GPIO69__FUNC_I2S3_LRCK>,
+			<PINMUX_GPIO73__FUNC_I2S3_DO>;
+		};
+	};
+};
+/*8193 dpi pin default end*/
+
 /* NFC GPIO standardization */
 &pio {
 	nfc_default: default {
@@ -471,35 +560,50 @@
 	};
 	ctp_pins_eint_as_int: eint@0 {
 		pins_cmd_dat {
-			pins = <PINMUX_GPIO85__FUNC_EINT8>;
+            /* Modified start by wenshengfan,2016/5/23 */
+			/*pins = <PINMUX_GPIO85__FUNC_EINT8>;*/
+			pins = <PINMUX_GPIO66__FUNC_EINT5>;
+            /* Modified end by wenshengfan,2016/5/23 */
 			slew-rate = <0>;
 			bias-disable;
 		};
 	};
 	ctp_pins_eint_output0: eintoutput0 {
 		pins_cmd_dat {
-			pins = <PINMUX_GPIO85__FUNC_GPIO85>;
+            /* Modified start by wenshengfan, 2016/5/23 */
+			/*pins = <PINMUX_GPIO85__FUNC_GPIO85>;*/
+			pins = <PINMUX_GPIO66__FUNC_GPIO66>;
+            /* Modified end by wenshengfan,2016/5/23 */
 			slew-rate = <1>;
 			output-low;
 		};
 	};
 	ctp_pins_eint_output1: eintoutput1 {
 		pins_cmd_dat {
-			pins = <PINMUX_GPIO85__FUNC_GPIO85>;
+            /* Modified start by wenshengfan,2016/5/23 */
+			/*pins = <PINMUX_GPIO85__FUNC_GPIO85>;*/
+			pins = <PINMUX_GPIO66__FUNC_GPIO66>;
+            /* Modified end by wenshengfan, 2016/5/23 */
 			slew-rate = <1>;
 			output-high;
 		};
 	};
 	ctp_pins_rst_output0: rstoutput0 {
 		pins_cmd_dat {
-			pins = <PINMUX_GPIO68__FUNC_GPIO68>;
+            /* Modified start by wenshengfan,2016/5/23 */
+			/*pins = <PINMUX_GPIO68__FUNC_GPIO68>;*/
+			pins = <PINMUX_GPIO64__FUNC_GPIO64>;
+            /* Modified end by wenshengfan,2016/5/23 */
 			slew-rate = <1>;
 			output-low;
 		};
 	};
 	ctp_pins_rst_output1: rstoutput1 {
 		pins_cmd_dat {
-			pins = <PINMUX_GPIO68__FUNC_GPIO68>;
+            /* Modified start by wenshengfan,2016/5/23 */
+			/*pins = <PINMUX_GPIO68__FUNC_GPIO68>;*/
+			pins = <PINMUX_GPIO64__FUNC_GPIO64>;
+            /* Modified end by wenshengfan, 2016/5/23 */
 			slew-rate = <1>;
 			output-high;
 		};
@@ -527,7 +631,7 @@
 	};
 	accdet_pins_eint_as_int: accdeteint@0 {
 		pins_cmd_dat {
-			pins = <PINMUX_GPIO92__FUNC_EINT15>;
+			pins = <PINMUX_GPIO93__FUNC_EINT16>;
 			slew-rate = <0>;
 			bias-disable;
 		};
@@ -887,28 +991,28 @@
 	};
 	camera_pins_cam_ldo_vcama_0: cam0@vcama0 {
 		pins_cmd_dat {
-			pins = <PINMUX_GPIO253__FUNC_GPIO253>;
+			pins = <PINMUX_GPIO63__FUNC_GPIO63>;
 			slew-rate = <1>;
 			output-low;
 		};
 	};
 	camera_pins_cam_ldo_vcama_1: cam1@vcama1 {
 		pins_cmd_dat {
-			pins = <PINMUX_GPIO253__FUNC_GPIO253>;
+			pins = <PINMUX_GPIO63__FUNC_GPIO63>;
 			slew-rate = <1>;
 			output-high;
 		};
 	};
 	camera_pins_cam_ldo_vcamd_0: cam0@vcamd0 {
 		pins_cmd_dat {
-			pins = <PINMUX_GPIO110__FUNC_GPIO110>;
+			pins = <PINMUX_GPIO63__FUNC_GPIO63>;
 			slew-rate = <1>;
 			output-low;
 		};
 	};
 	camera_pins_cam_ldo_vcamd_1: cam1@vcamd1 {
 		pins_cmd_dat {
-			pins = <PINMUX_GPIO110__FUNC_GPIO110>;
+			pins = <PINMUX_GPIO63__FUNC_GPIO63>;
 			slew-rate = <1>;
 			output-high;
 		};
@@ -1433,20 +1537,27 @@
 
 	flashlight_pins_hwen_high: hwen_high {
 
+        /* Deleted start by wenshengfan,2016/5/24 */
+        /*
 	    pins_cmd_dat {
 			pins = <PINMUX_GPIO90__FUNC_GPIO90>;
 			slew-rate = <1>;
 			output-high;
 		};
+        */
+        /* Deleted end by wenshengfan,2016/5/24 */
 	};
 
 	flashlight_pins_hwen_low: hwen_low {
-
+        /* Deleted start by wenshengfan,2016/5/24 */
+        /*
 	    pins_cmd_dat {
 			pins = <PINMUX_GPIO90__FUNC_GPIO90>;
 			slew-rate = <1>;
 			output-low;
 		};
+        */
+        /* Deleted end by wenshengfan, 2016/5/24 */
 	};
 
 };

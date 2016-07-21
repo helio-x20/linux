@@ -206,3 +206,4 @@ ifneq ($(wildcard $(srctree)/drivers/misc/mediatek/cpu_stress/),)
 obj-$(CONFIG_MTK_CPU_STRESS)	+= cpu_stress/
 endif
 obj-$(CONFIG_MTK_VOW_SUPPORT)	+= vow/
+obj-y   += led_96board/

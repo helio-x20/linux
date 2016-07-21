@@ -4206,7 +4206,49 @@
 		main_bus = <2>;
 		sub_bus = <3>;
 	};
+	mt8193ckgen:mt8193ckgen@0 {
+		compatible = "mediatek,mt8193-ckgen";
+	};
 
+	multibridge:multibridge {
+		compatible = "mediatek,multibridge";
+	};
+	
+	/*added by dangchaobing for leds*/
+	led_96board@0{
+			compatible = "mediatek,m_led_96board_pl";
+	};
+	/*end*/
+
+};
+
+&mt8193ckgen {
+	pinctrl-names = "default", "bus_switch_gpio", "bus_switch_dpi";
+	pinctrl-0 = <&mt8193ckgen_pins_default>;
+	pinctrl-1 = <&mt8193ckgen_pins_gpio>;
+	pinctrl-2 = <&mt8193ckgen_pins_dpi>;
+	bus_switch_pin = <&pio 0 0>;
+	status = "okay";
+};
+
+&pio {
+	mt8193ckgen_pins_default: 8193ckgen_default {
+	};
+
+	mt8193ckgen_pins_gpio: 8193ckgen_gpio {
+		pins_cmd_dat {
+			pins = <PINMUX_GPIO43__FUNC_GPIO43>;
+			slew-rate = <1>;
+			bias-pull-up = <00>;
+			output-high;
+		};
+	};
+
+	mt8193ckgen_pins_dpi: 8193ckgen_dpi {
+		pins_cmd_dat {
+			pins = <PINMUX_GPIO43__FUNC_DPI_D4>;
+		};
+	};
 };
 
 #include "cust.dtsi"
