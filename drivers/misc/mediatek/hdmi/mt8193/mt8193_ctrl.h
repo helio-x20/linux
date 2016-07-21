@@ -20,14 +20,14 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/workqueue.h>
 #include <linux/kobject.h>
 /*#include <linux/earlysuspend.h>*/
 #include <linux/platform_device.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -220,8 +220,7 @@ extern unsigned int mt8193_log_on;
 /* ///////////////////////////////////////////////////////////////////////////////////////////////// */
 #define HDMI_DEF_LOG(fmt, arg...) \
 	do {\
-		if (mt8193_log_on&hdmideflog) {\
-			pr_debug(fmt, ##arg); } \
+			pr_err(fmt, ##arg); \
 	} while (0)
 /* ///////////////////////////////////////////////////////////////////////////////////////////////// */
 extern int mt8193_i2c_read(unsigned short addr, unsigned int *data);

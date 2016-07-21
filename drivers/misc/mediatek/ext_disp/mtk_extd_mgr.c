@@ -29,8 +29,8 @@
 #include <linux/types.h>
 #include <linux/fb.h>
 
-#include <asm/uaccess.h>
-#include <asm/atomic.h>
+#include <linux/uaccess.h>
+#include <linux/atomic.h>
 
 #include "extd_log.h"
 #include "extd_utils.h"

@@ -18,7 +18,10 @@
 #define PMIC_DEBUG
 
 /* #define EXTERNAL_BUCK_MT6311 */
-#define EXTERNAL_BUCK_FAN49101
+/* Deleted start by wenshengfan,2016/5/23 */
+/* We don't have fan49101 device on 96 board,so cancel it */
+//#define EXTERNAL_BUCK_FAN49101
+/* Deleted end by wenshengfan,2016/5/23 */
 #define EXTERNAL_BUCK_FAN53555
 #define EXTERNAL_BUCK_DA9214
 

@@ -16,7 +16,7 @@
 #define     _EXTD_HDMI_TYPES_H_
 
 #include <linux/list.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include "hdmi_drv.h"
 #include "mtk_sync.h"

@@ -65,7 +65,7 @@
 
 #include "mt8193_iic.h"
 #include "mt8193.h"
-/*#define HDMI_OPEN_PACAKAGE_SUPPORT*/
+#define HDMI_OPEN_PACAKAGE_SUPPORT
 #ifdef HDMI_OPEN_PACAKAGE_SUPPORT
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
@@ -87,11 +87,11 @@ static int mt8193_i2c_remove(struct i2c_client *client);
 static struct i2c_client *mt8193_i2c_client;
 static const struct i2c_device_id mt8193_i2c_id[] = {{MT8193_DEVICE_NAME, 0}, {} };
 #ifdef HDMI_OPEN_PACAKAGE_SUPPORT
-struct regulator *vldo28_pmu;
-struct regulator *vrf12_pmu;
-struct regulator *vibr_pmu;
-struct regulator *vmipi_pmu;
-struct device *mt8193_dev_context;
+struct regulator *vldo28_pmu =NULL;
+struct regulator *vrf12_pmu =NULL;
+struct regulator *vibr_pmu =NULL;
+struct regulator *vmipi_pmu =NULL;
+struct device *mt8193_dev_context =NULL;
 static const struct of_device_id mt8193_i2c_mhl_id[] = {
 		{.compatible = "mediatek,ext_disp"},
 		{},
@@ -270,99 +270,98 @@ static int mt8193_i2c_remove(struct i2c_client *client)
 #ifdef HDMI_OPEN_PACAKAGE_SUPPORT
 static int mt8193_power_init(struct platform_device *pdev)
 {
-	int ret = 0;
-	struct device_node *kd_node = NULL;
+	int ret =0;
+	struct device_node *kd_node =NULL;
 	struct pinctrl *rst_pinctrl;
 	struct pinctrl_state *pin_state;
-
 	mt8193_dev_context = (struct device *)&(pdev->dev);
 	kd_node = mt8193_dev_context->of_node;
 	/* get regulator supply node */
-	mt8193_dev_context->of_node = of_find_compatible_node(NULL, NULL, "mediatek,mt_pmic_regulator_supply");
+	mt8193_dev_context->of_node = of_find_compatible_node(NULL,NULL,"mediatek,mt_pmic_regulator_supply"); 	
 
 	pr_err("mt8193_power_init get mt_pmic_regulator_supply!\n");
 
-	if (vmipi_pmu == NULL)
-		vmipi_pmu = regulator_get(mt8193_dev_context, "vmipi");
-
-	if (IS_ERR(vmipi_pmu)) {
+	if (vmipi_pmu == NULL) {
+		vmipi_pmu = regulator_get(mt8193_dev_context, "vmipi");	
+	}
+	if (IS_ERR(vmipi_pmu)){
 		pr_err("mt8193_power_init vmipi_pmu error %p!!!!!!!!!!!!!!\n", vmipi_pmu);
 		ret = -1;
 		goto exit;
 	} else {
-		pr_debug("mt8193_power_init vmipi_pmu init done %p\n", vmipi_pmu);
+		pr_debug("mt8193_power_init vmipi_pmu init done %p\n", vmipi_pmu );
 		regulator_set_voltage(vmipi_pmu, 1800000, 1800000);
 		ret = regulator_enable(vmipi_pmu);
-		if (ret)
+		if(ret)
 			pr_err("regulator_enable vmipi failed!\n");
 		else
 			pr_err("regulator_enable vmipi pass!\n");
 	}
-	udelay(4);
+	msleep(4);
 
-	if (vrf12_pmu == NULL)
-		vrf12_pmu = regulator_get(mt8193_dev_context, "vrf12");
-
+	if (vrf12_pmu == NULL) {
+		vrf12_pmu = regulator_get(mt8193_dev_context, "vrf12");	
+	}
 	if (IS_ERR(vrf12_pmu)) {
 		pr_err("mt8193_power_init vrf12_pmu error %p!!!!!!!!!!!!!!\n", vrf12_pmu);
 		ret = -1;
 		goto vrf12_pmu_exit;
 	} else {
-		pr_debug("mt8193_power_init vrf12_pmu init done %p\n", vrf12_pmu);
+		pr_debug("mt8193_power_init vrf12_pmu init done %p\n", vrf12_pmu );
 		regulator_set_voltage(vrf12_pmu, 1200000, 1200000);
 		ret = regulator_enable(vrf12_pmu);
-		if (ret)
+		if(ret)
 			pr_err("regulator_enable vrf12_pmu failed!\n");
 		else
 			pr_err("regulator_enable vrf12_pmu pass!\n");
 	}
-	udelay(8);
+	msleep(8);
 
-	if (vibr_pmu == NULL)
-		vibr_pmu = regulator_get(mt8193_dev_context, "vibr");
-
-	if (IS_ERR(vibr_pmu)) {
+	if (vibr_pmu == NULL) {
+		vibr_pmu = regulator_get(mt8193_dev_context, "vibr");	
+	}
+	if (IS_ERR(vibr_pmu)){
 		pr_err("mt8193_power_init vibr_pmu error %p!!!!!!!!!!!!!!\n", vibr_pmu);
 		ret = -1;
 		goto vibr_pmu_exit;
 	} else {
-		pr_debug("mt8193_power_init vibr_pmu init done %p\n", vibr_pmu);
+		pr_debug("mt8193_power_init vibr_pmu init done %p\n", vibr_pmu );
 		regulator_set_voltage(vibr_pmu, 3300000, 3300000);
 		ret = regulator_enable(vibr_pmu);
-		if (ret)
+		if(ret)
 			pr_err("regulator_enable vibr_pmu failed!\n");
 		else
 			pr_err("regulator_enable vibr_pmu pass!\n");
 	}
-	udelay(4);
+	msleep(4);
 
-	if (vldo28_pmu == NULL)
-		vldo28_pmu = regulator_get(mt8193_dev_context, "vldo28");
-
+	if (vldo28_pmu == NULL) {
+		vldo28_pmu = regulator_get(mt8193_dev_context, "vldo28");	
+	}
 	if (IS_ERR(vldo28_pmu)) {
 		pr_err("mt8193_power_init vldo28_pmu error %p!!!!!!!!!!!!!!\n", vldo28_pmu);
 		ret = -1;
 		goto vldo28_pmu_exit;
 	} else {
-		pr_debug("mt8193_power_init vldo28_pmu init done %p\n", vldo28_pmu);
+		pr_debug("mt8193_power_init vldo28_pmu init done %p\n", vldo28_pmu );
 		regulator_set_voltage(vldo28_pmu, 2800000, 2800000);
 		ret = regulator_enable(vldo28_pmu);
-		if (ret)
+		if(ret)
 			pr_err("regulator_enable vldo28_pmu failed!\n");
 		else
 			pr_err("regulator_enable vldo28_pmu pass!\n");
 	}
 	msleep(20);
-
-	mt8193_dev_context->of_node = kd_node;
+	
+	mt8193_dev_context->of_node = kd_node ;
 	rst_pinctrl = devm_pinctrl_get(mt8193_dev_context);
-	if (IS_ERR(rst_pinctrl)) {
+	if(IS_ERR(rst_pinctrl)) {
 		ret = PTR_ERR(rst_pinctrl);
 		pr_err("Cannot find mt8193 rst pinctrl!\n");
 		goto rst_exit;
 	}
 	pin_state = pinctrl_lookup_state(rst_pinctrl, rst_pin_name[1]);
-	if (IS_ERR(pin_state)) {
+	if(IS_ERR(pin_state)) {
 		ret = PTR_ERR(pin_state);
 		pr_err("Cannot find mt8193 rst pin state!\n");
 		goto rst_exit;
@@ -384,7 +383,7 @@ vibr_pmu_exit:
 vrf12_pmu_exit:
 	regulator_disable(vmipi_pmu);
 exit:
-	mt8193_dev_context->of_node = kd_node;
+	mt8193_dev_context->of_node = kd_node ;
 	return ret;
 }
 #endif
@@ -434,7 +433,6 @@ static struct platform_driver mt8193_mb_driver = {
 static int __init mt8193_mb_init(void)
 {
 	int ret = 0;
-
 	pr_err("%s\n", __func__);
 #ifdef HDMI_OPEN_PACAKAGE_SUPPORT
 	if (i2c_add_driver(&mt8193_i2c_driver)) {

@@ -69,17 +69,23 @@
 #include "ddp_hal.h"
 #include "extd_hdmi.h"
 #include "mt_boot_common.h"
+#define HDMI_OPEN_PACAKAGE_SUPPORT
+#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+#include <linux/pinctrl/consumer.h>
 /*----------------------------------------------------------------------------*/
 /* Debug message defination */
 /*----------------------------------------------------------------------------*/
-/*#define HDMI_OPEN_PACAKAGE_SUPPORT*/
-#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
-#include <linux/pinctrl/consumer.h>
+extern struct device *ext_dev_context;
 char *power_pin_name[2] = {"power_default", "power_up"};
 #endif
 /*----------------------------------------------------------------------------*/
 /* HDMI Timer */
 /*----------------------------------------------------------------------------*/
+
+#define  HDMI_POWER_5V_EN_195         195|0x80000000
+//#define  HDMI_RESET_193               193|0x80000000
+#define  led_2                        198|0x80000000
+#define  led_3                        199|0x80000000
 
 static struct timer_list r_hdmi_timer;
 static struct timer_list r_cec_timer;
@@ -87,7 +93,8 @@ static struct timer_list r_cec_timer;
 static uint32_t gHDMI_CHK_INTERVAL = 10;
 static uint32_t gCEC_CHK_INTERVAL = 20;
 
-unsigned int mt8193_log_on = hdmideflog;
+/*unsigned int mt8193_log_on = hdmideflog;*/
+unsigned int mt8193_log_on = hdmideflog | hdmidrvlog | hdmitxhotpluglog;
 unsigned int mt8193_cec_on = 0;
 unsigned int mt8193_cec_interrupt = 0;
 unsigned int mt8193_cecinit = 0;
@@ -382,14 +389,14 @@ void mt8193_set_mode(unsigned char ucMode)
 
 int mt8193_power_on(void)
 {
-#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+/*#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
 	int ret = 0;
 	struct pinctrl *power_pinctrl;
 	struct pinctrl_state *pin_state;
 #else
 	struct device_node *dn;
 	int bus_switch_pin;
-#endif
+#endif*/
 	HDMI_DEF_LOG("[hdmi]mt8193_power_on_\n");
 
 	if (hdmi_powerenable == 1) {
@@ -411,30 +418,45 @@ int mt8193_power_on(void)
 	mt_set_gpio_out(GPIO_HDMI_POWER_CONTROL, GPIO_OUT_ONE);
 	HDMI_DEF_LOG("[hdmi]hdmi_5v_on\n");
 #endif
-#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
-	if (ext_dev_context == NULL) {
+/*#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+	if(ext_dev_context == NULL) {
 		pr_err("Cannot find ext_dev_context!\n");
 		return 0;
 	}
 	power_pinctrl = devm_pinctrl_get(ext_dev_context);
-	if (IS_ERR(power_pinctrl)) {
+	if(IS_ERR(power_pinctrl)) {
 		ret = PTR_ERR(power_pinctrl);
 		pr_err("Cannot find mt8193 power pinctrl!\n");
 		return 0;
 	}
 	pin_state = pinctrl_lookup_state(power_pinctrl, power_pin_name[1]);
-	if (IS_ERR(pin_state)) {
+	if(IS_ERR(pin_state)) {
 		ret = PTR_ERR(pin_state);
 		pr_err("Cannot find mt8193 power pin state!\n");
 		return 0;
+	} else {
+		pinctrl_select_state(power_pinctrl, pin_state);
 	}
-	pinctrl_select_state(power_pinctrl, pin_state);
 #else
 	dn = of_find_compatible_node(NULL, NULL, "mediatek,mt8193-hdmi");
 	bus_switch_pin = of_get_named_gpio(dn, "hdmi_power_gpios", 0);
 	gpio_direction_output(bus_switch_pin, 1);
-#endif
+#endif*/
 
+	mt_set_gpio_mode(HDMI_POWER_5V_EN_195, GPIO_MODE_00);	
+    mt_set_gpio_dir(HDMI_POWER_5V_EN_195, GPIO_DIR_OUT);	
+    mt_set_gpio_out(HDMI_POWER_5V_EN_195, GPIO_OUT_ONE);
+	
+    printk("[dangchaobing]mt8193_power_on");
+	
+	mt_set_gpio_mode(led_2,GPIO_MODE_00);
+    mt_set_gpio_dir(led_2,GPIO_DIR_OUT);
+	mt_set_gpio_out(led_2, GPIO_OUT_ONE);
+	
+	mt_set_gpio_mode(led_3,GPIO_MODE_00);
+    mt_set_gpio_dir(led_3,GPIO_DIR_OUT);
+	mt_set_gpio_out(led_3, GPIO_OUT_ONE);
+	
 	vWriteHdmiSYSMsk(HDMI_PWR_CTRL, hdmi_power_turnon, hdmi_power_turnon);
 	vWriteHdmiSYSMsk(HDMI_SYS_PWR_RST_B, hdmi_pwr_sys_sw_unreset, hdmi_pwr_sys_sw_unreset);
 	vWriteHdmiSYSMsk(HDMI_PWR_CTRL, hdmi_iso_dis, hdmi_iso_en);
@@ -450,6 +472,7 @@ int mt8193_power_on(void)
 
 	mod_timer(&r_hdmi_timer, jiffies + gHDMI_CHK_INTERVAL / (1000 / HZ));
 	mod_timer(&r_cec_timer, jiffies + gCEC_CHK_INTERVAL / (1000 / HZ));
+	HDMI_DEF_LOG("[hdmi]mt8193_power_on_ done\n");
 
 	return 0;
 }
@@ -458,14 +481,14 @@ int mt8193_power_on(void)
 
 void mt8193_power_off(void)
 {
-#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+/*#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
 	int ret = 0;
 	struct pinctrl *power_pinctrl;
 	struct pinctrl_state *pin_state;
 #else
 	struct device_node *dn;
 	int bus_switch_pin;
-#endif
+#endif*/
 	HDMI_DEF_LOG("[hdmi]mt8193_power_off\n");
 	if (hdmi_powerenable == 0) {
 		HDMI_DEF_LOG("[hdmi]already power off, return\n");
@@ -492,29 +515,44 @@ void mt8193_power_off(void)
 	mt_set_gpio_out(GPIO_HDMI_POWER_CONTROL, GPIO_OUT_ZERO);
 	HDMI_DEF_LOG("[hdmi]hdmi_5v_off\n");
 #endif
-#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
-	if (ext_dev_context == NULL) {
+/*#ifdef HDMI_OPEN_PACAKAGE_SUPPORT
+	if(ext_dev_context == NULL) {
 		pr_err("Cannot find ext_dev_context!\n");
 		return;
 	}
 	power_pinctrl = devm_pinctrl_get(ext_dev_context);
-	if (IS_ERR(power_pinctrl)) {
+	if(IS_ERR(power_pinctrl)) {
 		ret = PTR_ERR(power_pinctrl);
 		pr_err("Cannot find mt8193 power pinctrl! ret = %d\n", ret);
 		return;
 	}
 	pin_state = pinctrl_lookup_state(power_pinctrl, power_pin_name[0]);
-	if (IS_ERR(pin_state)) {
+	if(IS_ERR(pin_state)) {
 		ret = PTR_ERR(pin_state);
 		pr_err("Cannot find mt8193 power pin state! ret = %d\n", ret);
 		return;
+	} else {
+		pinctrl_select_state(power_pinctrl, pin_state);
 	}
-	pinctrl_select_state(power_pinctrl, pin_state);
 #else
 	dn = of_find_compatible_node(NULL, NULL, "mediatek,mt8193-hdmi");
 	bus_switch_pin = of_get_named_gpio(dn, "hdmi_power_gpios", 0);
 	gpio_direction_output(bus_switch_pin, 0);
-#endif
+#endif*/
+
+    mt_set_gpio_mode(HDMI_POWER_5V_EN_195, GPIO_MODE_00);	
+    mt_set_gpio_dir(HDMI_POWER_5V_EN_195, GPIO_DIR_OUT);	
+    mt_set_gpio_out(HDMI_POWER_5V_EN_195, GPIO_OUT_ZERO);
+	
+	printk("[dangchaobing]mt8193_power_off");
+	
+	mt_set_gpio_mode(led_2,GPIO_MODE_00);
+    mt_set_gpio_dir(led_2,GPIO_DIR_OUT);
+	mt_set_gpio_out(led_2, GPIO_OUT_ZERO);
+	
+	mt_set_gpio_mode(led_3,GPIO_MODE_00);
+    mt_set_gpio_dir(led_3,GPIO_DIR_OUT);
+	mt_set_gpio_out(led_3, GPIO_OUT_ZERO);
 
 	vWriteHdmiSYSMsk(HDMI_PWR_CTRL, hdmi_clock_off, hdmi_clock_off);
 	vWriteHdmiSYSMsk(HDMI_PWR_CTRL, hdmi_iso_en, hdmi_iso_en);

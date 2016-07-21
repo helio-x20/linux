@@ -16,7 +16,7 @@
 #ifndef _MTK_EXT_DISP_MGR_H
 #define     _MTK_EXT_DISP_MGR_H
 
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include "mtkfb.h"
 #include "extd_hdmi.h"

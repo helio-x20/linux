@@ -137,7 +137,7 @@ struct task_struct *hdmi_fence_release_task = NULL;
 wait_queue_head_t hdmi_fence_release_wq;
 atomic_t hdmi_fence_release_event = ATOMIC_INIT(0);
 
-/*#define HDMI_OPEN_PACAKAGE_SUPPORT*/
+#define HDMI_OPEN_PACAKAGE_SUPPORT
 
 #ifdef HDMI_OPEN_PACAKAGE_SUPPORT
 struct task_struct *hdmi_para_config_task = NULL;
