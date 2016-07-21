@@ -646,6 +646,29 @@ ssize_t musb_sib_enable_store(struct device *dev, struct device_attribute *attr,
 }
 #endif
 
+// new add  by  zhaowan
+
+void swtich_deivce_to_host(void)
+{
+    if (_mu3d_musb && _mu3d_musb->is_clk_on) {
+        /* force device off */
+        _mu3d_musb->usb_mode = CABLE_MODE_HOST_ONLY;
+        schedule_delayed_work(&_mu3d_musb->connection_work, 0);
+        os_printk(K_INFO, "%s usb_mode=%d", __func__, _mu3d_musb->usb_mode);
+    }
+}
+
+
+void swtich_host_to_device(void)
+{
+    /* switch device on */
+    _mu3d_musb->usb_mode = CABLE_MODE_NORMAL;
+    schedule_delayed_work(&_mu3d_musb->connection_work, 0);
+    os_printk(K_INFO, "%s usb_mode=%d", __func__, _mu3d_musb->usb_mode);
+}
+
+
+
 #ifdef NEVER
 #ifdef CONFIG_MTK_FPGA
 static struct i2c_client *usb_i2c_client;

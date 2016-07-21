@@ -144,6 +144,10 @@ void mtk_xhci_set(struct usb_hcd *hcd, struct xhci_hcd *xhci);
 void mtk_xhci_reset(struct xhci_hcd *xhci);
 extern bool mtk_is_host_mode(void);
 
+// new add  by  zhaowan
+extern void swtich_deivce_to_host(void);
+extern void swtich_host_to_device(void);
+
 #ifdef CONFIG_USB_MTK_DUALMODE
 extern int mtk_xhci_eint_iddig_init(void);
 extern void mtk_xhci_switch_init(void);

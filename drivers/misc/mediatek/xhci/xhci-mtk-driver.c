@@ -78,6 +78,8 @@
 #define RET_SUCCESS 0
 #define RET_FAIL 1
 
+#include "musb_core.h"  //by zhaowan
+
 struct xhci_hcd *mtk_xhci;
 static int vbus_on;
 
@@ -496,6 +498,7 @@ static int mtk_xhci_driver_load(void)
 	int ret = 0;
 
 	/* recover clock/power setting and deassert reset bit of mac */
+	swtich_deivce_to_host(); // new add zhaowan
 #ifdef CONFIG_PROJECT_PHY
 	usb_phy_recover(0);
 	usb20_pll_settings(true, true);
@@ -531,6 +534,8 @@ static void mtk_xhci_disPortPower(void)
 static void mtk_xhci_driver_unload(void)
 {
 	mtk_xhci_hcd_cleanup();
+	swtich_host_to_device(); // new add zhaowan
+	
 	/* close clock/power setting and assert reset bit of mac */
 #ifdef CONFIG_PROJECT_PHY
 	usb_phy_savecurrent(1);
@@ -551,6 +556,7 @@ void mtk_xhci_switch_init(void)
 		mtk_xhci_mtk_printk(K_DEBUG, "switch_dev register success\n");
 #endif
 }
+
 
 void mtk_xhci_mode_switch(struct work_struct *work)
 {
@@ -621,6 +627,7 @@ done:
 			 (mtk_idpin_cur_stat == IDPIN_IN_DEVICE) ? "id_device" : "device",
 			 ret, mtk_otg_state.state);
 }
+
 
 static irqreturn_t xhci_eint_iddig_isr(int irqnum, void *data)
 {
