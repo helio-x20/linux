@@ -1529,6 +1529,48 @@
 	status = "okay";
 };
 /* USB TYPEC GPIO end */
+/*LCM BACKLIGHT GPIO standardization
+* support suspend LCM backlight
+* add by dongyong 2016/7/26
+*/
+&pio {
+	lcm_pins_default: default {
+	};
+
+	lcm_high: lcm_high {
+
+       
+	    pins_cmd_dat {
+			pins = <PINMUX_GPIO62__FUNC_GPIO62>;
+			slew-rate = <1>;
+			output-high;
+
+		};
+       
+	};
+
+	lcm_low: lcm_low {
+
+	    pins_cmd_dat {
+			pins = <PINMUX_GPIO62__FUNC_GPIO62>;
+			slew-rate = <1>;
+			output-low;
+
+		};
+ 
+	};
+
+};
+&mtkfb {
+	pinctrl-names = "default", "lcd_bias_enp0_gpio", "lcd_bias_enp1_gpio";
+	pinctrl-0 = <&lcm_pins_default>;
+	pinctrl-1 = <&lcm_low>;
+	pinctrl-2 = <&lcm_high>;
+	bus_switch_pin = <&pio 0 0>;
+	status = "okay";
+};
+/*LCM BACKLIGHT GPIO end*/
+
 /* FLASHLIGHT GPIO standardization */
 &pio {
 	flashlight_pins_default: default {
