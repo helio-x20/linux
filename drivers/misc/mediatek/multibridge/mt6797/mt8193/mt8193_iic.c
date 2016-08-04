@@ -510,12 +510,12 @@ static int mt8193_remove(struct platform_device *pdev)
 }
 static int mt8193_power_suspend(struct platform_device *pdev,pm_message_t state)
 {
-	mt8193_power_init(pdev,0);
+	//mt8193_power_init(pdev,0);
 	return 0;
 }
 static int mt8193_power_resume(struct platform_device *pdev)
 {
-	mt8193_power_init(pdev,1);
+	//mt8193_power_init(pdev,1);
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
