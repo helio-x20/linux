@@ -474,11 +474,11 @@ enum DPI_STATUS ddp_dpi_ConfigCCIR656(cmdqRecHandle cmdq, bool enable)
 	DPI_OUTREGBIT(cmdq, struct DPI_REG_OUTPUT_SETTING, DPI_REG->OUTPUT_SETTING, YC_MAP, outputsetting.YC_MAP);
 	DPI_OUTREGBIT(cmdq, struct DPI_REG_OUTPUT_SETTING, DPI_REG->OUTPUT_SETTING, CLK_POL, outputsetting.CLK_POL);
 
-	ylimit.Y_LIMIT_BOT = 0x100;
-	ylimit.Y_LIMIT_TOP = 0xF00;
-	climit.C_LIMIT_BOT = 0x100;
-	climit.C_LIMIT_TOP = 0xF00;
-
+	ylimit.Y_LIMIT_BOT= 0x100;
+	ylimit.Y_LIMIT_TOP= 0xF00;
+	climit.C_LIMIT_BOT= 0x100;
+	climit.C_LIMIT_TOP= 0xF00;
+	
 	DPI_OUTREGBIT(cmdq, struct DPI_REG_Y_LIMIT, DPI_REG->Y_LIMIT, Y_LIMIT_BOT, ylimit.Y_LIMIT_BOT);
 	DPI_OUTREGBIT(cmdq, struct DPI_REG_Y_LIMIT, DPI_REG->Y_LIMIT, Y_LIMIT_TOP, ylimit.Y_LIMIT_TOP);
 	DPI_OUTREGBIT(cmdq, struct DPI_REG_C_LIMIT, DPI_REG->C_LIMIT, C_LIMIT_BOT, climit.C_LIMIT_BOT);

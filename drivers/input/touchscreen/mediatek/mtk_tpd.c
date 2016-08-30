@@ -648,12 +648,23 @@ static int tpd_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#define HDMI2LCM_SWITCH 1
+
+#if HDMI2LCM_SWITCH
+extern int mt_get_gpio_in(unsigned long pin);
+#endif
+
 /* called when loaded into kernel */
 static void tpd_init_work_callback(struct work_struct *work)
 {
 	TPD_DEBUG("MediaTek touch panel driver init\n");
-	if (platform_driver_register(&tpd_driver) != 0) {
-		TPD_DMESG("unable to register touch panel driver.\n");
+#if HDMI2LCM_SWITCH
+	if(mt_get_gpio_in(68))
+#endif
+	{
+		if (platform_driver_register(&tpd_driver) != 0) {
+			TPD_DMESG("unable to register touch panel driver.\n");
+		}
 	}
 }
 static int __init tpd_device_init(void)
