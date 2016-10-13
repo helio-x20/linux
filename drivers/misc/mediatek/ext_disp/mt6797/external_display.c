@@ -1398,3 +1398,13 @@ int ext_disp_is_dim_layer(unsigned long mva)
 
 	return ret;
 }
+
+int is_lcm_connected(void)
+{
+	int ret = 0;
+	if (islcmconnected)
+		ret = 1;
+	else
+		ret = 0;
+	return ret;
+}

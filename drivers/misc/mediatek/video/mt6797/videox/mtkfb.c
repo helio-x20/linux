@@ -270,6 +270,8 @@ exit:
 #if defined(CONFIG_PM_AUTOSLEEP)
 static int mtkfb_blank(int blank_mode, struct fb_info *info)
 {
+	if (!islcmconnected)
+		return 0;
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 	case FB_BLANK_NORMAL:
@@ -1823,6 +1825,8 @@ static int mtkfb_fbinfo_init(struct fb_info *info)
 	DISPFUNC();
 
 	BUG_ON(!fbdev->fb_va_base);
+	if (!islcmconnected)
+		mtkfb_ops.fb_blank = NULL;
 	info->fbops = &mtkfb_ops;
 	info->flags = FBINFO_FLAG_DEFAULT;
 	info->screen_base = (char *)fbdev->fb_va_base;

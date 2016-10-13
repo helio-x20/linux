@@ -376,6 +376,9 @@ extern long hdmi_handle_cmd(unsigned int cmd, unsigned long arg);
 
 #if defined(CONFIG_ARCH_MT6797)
 extern unsigned int vramsize;
+#ifdef CONFIG_OF
+extern unsigned int islcmconnected;
+#endif
 #endif
 
 #if defined(CONFIG_ARCH_MT6735) || defined(CONFIG_ARCH_MT6735M) || defined(CONFIG_ARCH_MT6753)

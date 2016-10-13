@@ -72,6 +72,7 @@
 #include "ddp_mmp.h"
 #include "mtkfb_fence.h"
 #include "extd_multi_control.h"
+#include "external_display.h"
 #include "m4u.h"
 #include "mtk_hrt.h"
 #include "compat_mtk_disp_mgr.h"
@@ -159,7 +160,11 @@ int disp_create_session(disp_session_config *config)
 	int ret = 0;
 	int is_session_inited = 0;
 	unsigned int session = MAKE_DISP_SESSION(config->type, config->device_id);
+	unsigned int mem_session = MAKE_DISP_SESSION(DISP_SESSION_MEMORY, DEV_WFD);
 	int i, idx = -1;
+
+	if ((!is_lcm_connected()) && (session == mem_session))
+		return -1;
 	/* 1.To check if this session exists already */
 	mutex_lock(&disp_session_lock);
 	for (i = 0; i < MAX_SESSION_COUNT; i++) {
@@ -1322,6 +1327,9 @@ int _ioctl_get_display_caps(unsigned long arg)
 	if (disp_helper_get_option(DISP_OPT_HRT))
 		caps_info.disp_feature |= DISP_FEATURE_HRT;
 
+	if (!islcmconnected)
+		caps_info.disp_feature |= DISP_FEATURE_NO_LCM;
+
 	DISPDBG("%s mode:%d, pass:%d, max_layer_num:%d\n",
 		__func__, caps_info.output_mode, caps_info.output_pass, caps_info.max_layer_num);
 
@@ -1390,7 +1398,35 @@ int _ioctl_query_valid_layer(unsigned long arg)
 		ret = -EFAULT;
 	}
 
-	ret = dispsys_hrt_calc(&disp_info_user);
+	if (is_lcm_connected())
+		ret = dispsys_hrt_calc(&disp_info_user);
+	else {
+		disp_info_user.disp_mode[1] = disp_info_user.disp_mode[0];
+		disp_info_user.layer_num[1] = disp_info_user.layer_num[0];
+		disp_info_user.gles_head[1] = disp_info_user.gles_head[0];
+		disp_info_user.gles_tail[1] = disp_info_user.gles_tail[0];
+		disp_info_user.input_config[1] = disp_info_user.input_config[0];
+
+		disp_info_user.disp_mode[0] = 0;
+		disp_info_user.layer_num[0] = 0;
+		disp_info_user.gles_head[0] = 0;
+		disp_info_user.gles_tail[0] = 0;
+		disp_info_user.input_config[0] = NULL;
+
+		ret = dispsys_hrt_calc(&disp_info_user);
+
+		disp_info_user.disp_mode[0] = disp_info_user.disp_mode[1];
+		disp_info_user.layer_num[0] = disp_info_user.layer_num[1];
+		disp_info_user.gles_head[0] = disp_info_user.gles_head[1];
+		disp_info_user.gles_tail[0] = disp_info_user.gles_tail[1];
+		disp_info_user.input_config[0] = disp_info_user.input_config[1];
+
+		disp_info_user.disp_mode[1] = 0;
+		disp_info_user.layer_num[1] = 0;
+		disp_info_user.gles_head[1] = 0;
+		disp_info_user.gles_tail[1] = 0;
+		disp_info_user.input_config[1] = NULL;
+	}
 
 	if (copy_to_user(argp, &disp_info_user, sizeof(disp_info_user))) {
 		DISPERR("[FB]: copy_to_user failed! line:%d\n", __LINE__);
