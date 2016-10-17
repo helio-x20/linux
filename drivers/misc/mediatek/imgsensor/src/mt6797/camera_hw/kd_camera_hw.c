@@ -586,7 +586,7 @@ int mtkcam_gpio_set(int PinIdx, int PwrType, int Val)
 					PK_ERR("Please check AVDD pin control\n");
 
 				mAVDD_usercounter = 0;
-			//	pinctrl_select_state(camctrl, cam_ldo_vcama_l);   ////by zhaowan  del,2016/07/18
+				pinctrl_select_state(camctrl, cam_ldo_vcama_l);   ////by zhaowan  del,2016/07/18
 			} 
 			
 		}
@@ -607,7 +607,7 @@ int mtkcam_gpio_set(int PinIdx, int PwrType, int Val)
 					PK_ERR("Please check DVDD pin control\n");
 
 				mDVDD_usercounter = 0;
-			//	pinctrl_select_state(camctrl, cam_ldo_vcamd_l);  //by zhaowan del,2016/07/18
+				pinctrl_select_state(camctrl, cam_ldo_vcamd_l);  //by zhaowan del,2016/07/18
 			}
 		}
 		else if (Val == 1 && !IS_ERR(cam_ldo_vcamd_h))

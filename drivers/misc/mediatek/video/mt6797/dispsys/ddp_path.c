@@ -1211,6 +1211,12 @@ int ddp_path_top_clock_on(void)
 		ddp_clk_prepare_enable(DISP0_SMI_LARB5);
 	} else {
 		need_enable = 1;
+		if (!islcmconnected) {
+			ddp_clk_prepare_enable(DISP_MTCMOS_CLK);
+			ddp_clk_prepare_enable(DISP0_SMI_COMMON);
+			ddp_clk_prepare_enable(DISP0_SMI_LARB0);
+			ddp_clk_prepare_enable(DISP0_SMI_LARB5);
+		}
 		if (disp_helper_get_option(DISP_OPT_DYNAMIC_SWITCH_MMSYSCLK))
 			;/*ddp_clk_prepare_enable(MM_VENCPLL);*/
 	}

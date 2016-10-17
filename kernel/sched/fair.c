@@ -2599,14 +2599,13 @@ static inline u64 __synchronize_entity_decay(struct sched_entity *se)
 	u64 decays = atomic64_read(&cfs_rq->decay_counter);
 
 	decays -= se->avg.decay_count;
+	se->avg.decay_count = 0;
 	if (!decays)
 		return 0;
 
 	se->avg.load_avg_contrib = decay_load(se->avg.load_avg_contrib, decays);
 	se->avg.utilization_avg_contrib =
 		decay_load(se->avg.utilization_avg_contrib, decays);
-
-	se->avg.decay_count = 0;
 
 	return decays;
 }
@@ -2895,15 +2894,29 @@ static inline void update_entity_load_avg(struct sched_entity *se,
 	else
 		now = cfs_rq_clock_task(group_cfs_rq(se));
 
+#ifdef CONFIG_MTK_SCHED_RQAVG_US
+	if (entity_is_task(se) && se->on_rq)
+		inc_nr_heavy_running("update_entity_load_avg-", task_of(se), -1, false);
+#endif
 	if (!__update_entity_runnable_avg(now, cpu, &se->avg, se->on_rq, cfs_rq->curr == se)) {
 		/* sched: add trace_sched */
 		if (entity_is_task(se))
 			trace_sched_task_entity_avg(2, task_of(se), &se->avg);
+
+#ifdef CONFIG_MTK_SCHED_RQAVG_US
+		if (entity_is_task(se) && se->on_rq)
+			inc_nr_heavy_running("update_entity_load_avg+", task_of(se), 1, false);
+#endif
 		return;
 	}
 
 	contrib_delta = __update_entity_load_avg_contrib(se);
 	__update_entity_utilization_avg_contrib(se, &running_delta, &runnable_delta);
+
+#ifdef CONFIG_MTK_SCHED_RQAVG_US
+	if (entity_is_task(se) && se->on_rq)
+		inc_nr_heavy_running("update_entity_load_avg++", task_of(se), 1, false);
+#endif
 
 	if (!update_cfs_rq)
 		return;
@@ -4803,6 +4816,11 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	if (!se) {
 		update_rq_runnable_avg(rq, rq->nr_running);
 		add_nr_running(rq, 1);
+
+#ifdef CONFIG_MTK_SCHED_RQAVG_US
+		inc_nr_heavy_running(__func__, p, 1, false);
+#endif
+
 #ifndef CONFIG_CFS_BANDWIDTH
 		BUG_ON(rq->cfs.nr_running > rq->cfs.h_nr_running);
 #endif
@@ -4877,6 +4895,9 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 		BUG_ON(rq->cfs.nr_running > rq->cfs.h_nr_running);
 #endif
 		update_rq_runnable_avg(rq, 1);
+#ifdef CONFIG_MTK_SCHED_RQAVG_US
+		inc_nr_heavy_running(__func__, p, -1, false);
+#endif
 	}
 	hrtick_update(rq);
 #ifdef CONFIG_MTK_SCHED_CMP_TGS

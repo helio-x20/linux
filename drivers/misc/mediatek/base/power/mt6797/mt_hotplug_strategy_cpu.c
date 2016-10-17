@@ -142,13 +142,18 @@ unsigned int hps_cpu_get_nr_heavy_task(void)
 #endif
 }
 
-void hps_cpu_get_tlp(unsigned int *avg, unsigned int *iowait_avg)
+int hps_cpu_get_tlp(unsigned int *avg, unsigned int *iowait_avg)
 {
+	int scaled_tlp = 0; /* The scaled tasks number of the last poll  */
 #ifdef CONFIG_MTK_SCHED_RQAVG_KS
-	sched_get_nr_running_avg((int *)avg, (int *)iowait_avg);
+	scaled_tlp = sched_get_nr_running_avg((int *)avg, (int *)iowait_avg);
+
+	return scaled_tlp;
 #else
 	*avg = 0;
 	*iowait_avg = 0;
+
+	return scaled_tlp;
 #endif
 }
 

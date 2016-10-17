@@ -11,6 +11,7 @@
  * GNU General Public License for more details.
  */
 
+
 #include "led_96board.h"
 #include <mt-plat/mt_gpio.h>
 #include <mach/gpio_const.h>

@@ -127,7 +127,6 @@ static volatile void *g_0x10018_base;
 static volatile void *g_0x10019_base;
 static volatile void *g_0x10201_base;
 static volatile void *g_0x13000_base;
-static volatile void *g_0x13040_base;
 
 #define _mtk_dump_register(mtklog, pa, offset, dsize) \
 	__mtk_dump_register(mtklog, g_##pa##_base, pa##000, offset, dsize)
@@ -214,7 +213,6 @@ void mtk_debug_dump_registers(void)
 		if (g_is_power_on)
 		{
 			_mtk_dump_register(mtklog, 0x13000, 0x0, 0x470);
-			_mtk_dump_register(mtklog, 0x13040, 0x0, 0x4000);
 		}
 		else
 		{
@@ -237,7 +235,6 @@ void mtk_debbug_register_init(void)
 	DEBUG_INIT_BASE(0x10019, 0x1000);
 	DEBUG_INIT_BASE(0x10201, 0x1000);
 	DEBUG_INIT_BASE(0x13000, 0x1000);
-	DEBUG_INIT_BASE(0x13040, 0x4000);
 }
 
 void mtk_debug_mfg_reset(void)
@@ -308,6 +305,9 @@ static int mtk_pm_callback_power_on(void)
 	MFG_write32(0x430, MFG_read32(0x430) | 0x1);
 	MFG_write32(0x448, MFG_read32(0x448) | 0x1);
 #endif
+
+	/* timing */
+	MFG_write32(0x1c, MFG_read32(0x1c) | config->async_value);
 
 	/* enable PMU */
 	MFG_write32(0x3e0, 0xffffffff);
@@ -676,6 +676,8 @@ int mtk_platform_init(struct platform_device *pdev, struct kbase_device *kbdev)
 	config->max_freq = mt_gpufreq_get_freq_by_idx(0);
 	config->min_volt = 860;
 	config->min_freq = mt_gpufreq_get_freq_by_idx(mt_gpufreq_get_dvfs_table_num()-2);
+
+	config->async_value = config->max_freq >= 780000 ? 0xa : 0x5;
 
 	g_config = kbdev->mtk_config = config;
 

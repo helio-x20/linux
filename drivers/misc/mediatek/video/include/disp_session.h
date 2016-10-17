@@ -310,8 +310,10 @@ typedef struct disp_session_info_t {
 	unsigned int displayFormat;
 	DISP_IF_MODE displayMode;
 	unsigned int vsyncFPS;
-	unsigned int physicalWidth;
-	unsigned int physicalHeight;
+	unsigned int physicalWidth;	/* length: mm, for legacy use */
+	unsigned int physicalHeight;	/* length: mm, for legacy use */
+	unsigned int physicalWidthUm;	/* length: um, for more precise precision */
+	unsigned int physicalHeightUm;	/* length: um, for more precise precision */
 	unsigned int isConnected;
 	unsigned int isHDCPSupported;
 	unsigned int isOVLDisabled;
@@ -370,6 +372,7 @@ typedef enum {
 	DISP_FEATURE_TIME_SHARING = 0x00000001,
 	DISP_FEATURE_HRT = 0x00000002,
 	DISP_FEATURE_PARTIAL = 0x00000004,
+	DISP_FEATURE_NO_LCM = 0x10000000,
 } DISP_FEATURE;
 
 typedef struct disp_caps_t {

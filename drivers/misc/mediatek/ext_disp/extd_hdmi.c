@@ -114,7 +114,10 @@ static unsigned int hdmi_layer_num;
 static unsigned long ovl_config_address[EXTD_OVERLAY_CNT];
 static unsigned int hdmi_resolution_param_table[][3] = {
 	{720, 480, 60},
+	{1440, 480, 60},
 	{1280, 720, 60},
+	{0, 0, 0},
+	{0, 0, 0},
 	{1920, 1080, 30},
 	{1920, 1080, 60},
 };
@@ -510,8 +513,10 @@ int hdmi_audio_config(int format)
 
 static void _hdmi_rdma_irq_handler(DISP_MODULE_ENUM module, unsigned int param)
 {
-	if (!is_hdmi_active())
-		return;
+	if (is_lcm_connected()) {
+		if (!is_hdmi_active())
+			return;
+	}
 
 	if (param & 0x2) {	/* start */
 		atomic_set(&hdmi_fence_release_event, 1);
@@ -643,7 +648,8 @@ static int hdmi_fence_release_kthread(void *data)
 		else
 			layer_3d_format = HDMI_VOUT_FORMAT_2D;
 
-		hdmi_video_config(p->output_video_resolution, HDMI_VIN_FORMAT_RGB888,
+		if (hdmi_drv->get_state() == HDMI_STATE_ACTIVE)
+			hdmi_video_config(p->output_video_resolution, HDMI_VIN_FORMAT_RGB888,
 						HDMI_VOUT_FORMAT_RGB888 | layer_3d_format);
 		if (kthread_should_stop())
 			break;
@@ -828,6 +834,8 @@ static void hdmi_state_reset(void)
 				hdmi_drv->get_params(hdmi_params);
 				hdmi_resume();
 			}
+			if (!is_lcm_connected())
+				hdmi_resume();
 
 			hdmi_state_reset();
 		}
@@ -1018,7 +1026,8 @@ void hdmi_state_callback(enum HDMI_STATE state)
 #ifdef MHL_DYNAMIC_VSYNC_OFFSET
 			ged_dvfs_vsync_offset_event_switch(GED_DVFS_VSYNC_OFFSET_MHL_EVENT, false);
 #endif
-			hdmi_suspend();
+			if (is_lcm_connected())
+				hdmi_suspend();
 			switch_set_state(&hdmi_switch_data, HDMI_STATE_NO_DEVICE);
 			switch_set_state(&hdmires_switch_data, 0);
 			hdmi_enable_dvfs(false);
@@ -1133,6 +1142,8 @@ int hdmi_power_enable(int enable)
 		}
 		hdmi_power_on();
 	} else {
+	if (!is_lcm_connected())
+			hdmi_suspend();
 		hdmi_power_off();
 		switch_set_state(&hdmi_switch_data, HDMI_STATE_NO_DEVICE);
 	}
@@ -1288,7 +1299,9 @@ int hdmi_set_resolution(int res)
 int hdmi_get_dev_info(int is_sf, void *info)
 {
 	int ret = 0;
-
+	if (!is_lcm_connected()) {
+		hdmi_enable(1);
+	}
 	if (is_sf == AP_GET_INFO) {
 		int displayid = 0;
 		mtk_dispif_info_t hdmi_info;
@@ -1334,6 +1347,7 @@ int hdmi_get_dev_info(int is_sf, void *info)
 			hdmi_info.vsyncFPS = 24;
 		else
 			hdmi_info.vsyncFPS = 60;
+		hdmi_info.vsyncFPS *= 100;
 
 		if (copy_to_user(info, &hdmi_info, sizeof(hdmi_info))) {
 			MMProfileLogEx(ddp_mmp_get_events()->Extd_ErrorInfo, MMProfileFlagPulse, Devinfo, 1);
@@ -1375,6 +1389,7 @@ int hdmi_get_dev_info(int is_sf, void *info)
 			dispif_info->vsyncFPS = 24;
 		else
 			dispif_info->vsyncFPS = 60;
+		dispif_info->vsyncFPS *= 100;
 
 		if (dispif_info->displayWidth * dispif_info->displayHeight <= 240 * 432)
 			dispif_info->physicalHeight = dispif_info->physicalWidth = 0;
@@ -1584,6 +1599,7 @@ int hdmi_post_init(void)
 
 #ifdef HDMI_OPEN_PACAKAGE_SUPPORT
 	init_waitqueue_head(&hdmi_para_config_wq);
+	hdmi_resolution_setting(HDMI_VIDEO_1280x720p_60Hz);
 #endif
 	Extd_DBG_Init();
 	return 0;
