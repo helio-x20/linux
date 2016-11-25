@@ -232,11 +232,12 @@ static void __mrdump_reboot_va(AEE_REBOOT_MODE reboot_mode, struct pt_regs *regs
 	local_irq_disable();
 	local_fiq_disable();
 
+	cpu = get_HW_cpuid();
+
 #if defined(CONFIG_SMP)
 	__mrdump_reboot_stop_all(crash_record, cpu);
 #endif
 
-	cpu = get_HW_cpuid();
 	crashing_cpu = cpu;
 	crash_save_cpu(regs, cpu);
 
