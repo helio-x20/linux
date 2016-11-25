@@ -12,6 +12,7 @@
 #
 
 ccflags-y +=	\
+	-I$(src) \
 	-I$(PPM_ROOT_DIR)/inc \
 	-I$(srctree)/drivers/misc/mediatek/base/power/$(CONFIG_MTK_PLATFORM)/
 

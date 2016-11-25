@@ -11,7 +11,8 @@
 # GNU General Public License for more details.
 #
 
-ccflags-y += -I$(srctree)/drivers/misc/mediatek/mu3d/drv \
+ccflags-y += -I$(src) \
+	     -I$(srctree)/drivers/misc/mediatek/mu3d/drv \
              -I$(srctree)/drivers/misc/mediatek/mu3d/hal \
              -I$(srctree)/drivers/misc/mediatek/mu3phy/$(CONFIG_MTK_PLATFORM)
 

@@ -15,7 +15,8 @@
 # Makefile for external display driver.
 #
 
-ccflags-y += -I$(srctree)/drivers/misc/mediatek/include/ \
+ccflags-y += -I$(src) \
+	     -I$(srctree)/drivers/misc/mediatek/include/ \
              -I$(srctree)/drivers/misc/mediatek/ext_disp/  \
              -I$(srctree)/drivers/misc/mediatek/ext_disp/common/test/ \
              -I$(srctree)/drivers/misc/mediatek/gpu/ged/include \
