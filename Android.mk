@@ -46,7 +46,7 @@ define fixup-kernel-cmd-file
 if [ -e $(1) ]; then cp $(1) $(1).bak; sed -e 's/\\\\\\\\/\\\\/g' < $(1).bak > $(1); rm -f $(1).bak; fi
 endef
 
-ifeq ($(notdir $(LOCAL_PATH)),$(strip $(LINUX_KERNEL_VERSION)))
+ifeq ($(notdir $(LOCAL_PATH)),$(strip $(notdir $(LINUX_KERNEL_VERSION))))
 ifneq ($(strip $(TARGET_NO_KERNEL)),true)
     KERNEL_DIR := $(LOCAL_PATH)
     BUILT_SYSTEMIMAGE := $(call intermediates-dir-for,PACKAGING,systemimage)/system.img
