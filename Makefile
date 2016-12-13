@@ -768,6 +768,22 @@ KBUILD_CFLAGS   += $(call cc-option,-Werror=strict-prototypes)
 # Prohibit date/time macros, which would make the build non-deterministic
 KBUILD_CFLAGS   += $(call cc-option,-Werror=date-time)
 
+# Allow for warnings that didn't exist in gcc 4.x
+# Some of those are valid and should be fixed!
+KBUILD_CFLAGS   += $(call cc-option,-Wno-error=unused-const-variable)
+KBUILD_CFLAGS   += $(call cc-option,-Wno-error=misleading-indentation)
+KBUILD_CFLAGS   += $(call cc-option,-Wno-error=logical-not-parentheses)
+KBUILD_CFLAGS   += $(call cc-option,-Wno-error=discarded-array-qualifiers)
+KBUILD_CFLAGS   += $(call cc-option,-Wno-error=switch-bool)
+# And some warnings gcc 6.x catches in more cases
+# Should be fixed here:
+# drivers/misc/mediatek/aee/mrdump/mrdump_full.c:236:2: error: 'cpu' is used uninitialized in this function
+KBUILD_CFLAGS   += $(call cc-option,-Wno-error=uninitialized)
+# drivers/misc/mediatek/m4u/mt6797/m4u_hw.c:2104:36: error: array subscript is above array bounds [-Werror=array-bounds]
+KBUILD_CFLAGS   += $(call cc-option,-Wno-error=array-bounds)
+# drivers/misc/mediatek/video/mt6797/dispsys/ddp_ufoe.c:171:23: error: comparison of constant '3' with boolean expression is always false [-Werror=bool-compare]
+KBUILD_CFLAGS   += $(call cc-option,-Wno-error=bool-compare)
+
 # use the deterministic mode of AR if available
 KBUILD_ARFLAGS := $(call ar-option,D)
 
