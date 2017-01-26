@@ -2,7 +2,7 @@
 # Makefile for cpuidle.
 #
 
-subdir-ccflags-y += -Werror
+subdir-ccflags-y += -Werror $(call cc-option,-Wno-error=unused-const-variable)
 
 obj-y += cpuidle.o driver.o governor.o sysfs.o governors/
 obj-$(CONFIG_ARCH_NEEDS_CPU_IDLE_COUPLED) += coupled.o
