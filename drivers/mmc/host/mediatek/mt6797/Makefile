@@ -11,6 +11,8 @@
 # GNU General Public License for more details.
 #
 
+ccflags-y += -I$(src)
+
 #add kernel source code path as head file search path
 MTK_PLATFORM := $(subst ",,$(CONFIG_MTK_PLATFORM))
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/include

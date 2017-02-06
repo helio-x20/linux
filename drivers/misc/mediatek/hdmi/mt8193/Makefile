@@ -13,6 +13,8 @@
 
 #include $(srctree)/drivers/misc/mediatek/Makefile.custom
 
+ccflags-y += -I$(src)
+
 ifeq ($(CONFIG_ARCH_MT6735M), y)
 ccflags-y += -I$(srctree)/drivers/misc/mediatek/ext_disp/mt6735m
 endif

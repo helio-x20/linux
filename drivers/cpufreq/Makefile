@@ -1,4 +1,5 @@
 
+ccflags-y += -I$(src)
 subdir-ccflags-y += -Werror
 
 # CPUfreq core

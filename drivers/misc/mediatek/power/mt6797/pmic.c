@@ -75,8 +75,8 @@
 #include <linux/gpio/consumer.h>
 #endif
 #include <mt-plat/upmu_common.h>
-#include <pmic.h>
-#include <pmic_irq.h>
+#include "pmic.h"
+#include "pmic_irq.h"
 /*#include <mach/eint.h> TBD*/
 #include <mach/mt_pmic_wrap.h>
 #if defined CONFIG_MTK_LEGACY
@@ -107,13 +107,13 @@
 #include <mach/mt_charging.h>
 
 #if defined(EXTERNAL_BUCK_FAN49101)
-#include <fan49101.h>
+#include "fan49101.h"
 #endif
 #if defined(EXTERNAL_BUCK_FAN53555)
-#include <fan53555.h>
+#include "fan53555.h"
 #endif
 #if defined(EXTERNAL_BUCK_DA9214)
-#include <da9214.h>
+#include "da9214.h"
 #endif
 
 /*****************************************************************************
