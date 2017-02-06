@@ -4,7 +4,7 @@
 
 # Object files in subdirectories
 
-subdir-ccflags-y += -Werror
+subdir-ccflags-y += -Werror $(call cc-option,-Wno-error=unused-const-variable)
 
 obj-$(CONFIG_USB)		+= core/
 
