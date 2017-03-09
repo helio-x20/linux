@@ -180,7 +180,8 @@ CONFIG_MTK_DISABLE_PICACHU=y
 CONFIG_MTK_FREQ_HOPPING=y
 #by  zhaowan add 
 #CONFIG_MTK_BQ25896_SUPPORT=y
-CONFIG_CUSTOM_KERNEL_IMGSENSOR="ov23850_mipi_raw s5k3m2_mipi_raw s5k5e2ya_mipi_raw imx258_mipi_raw imx377_mipi_raw s5k2x8_mipi_raw"
+#modified by wangjie ,2016/12/21
+CONFIG_CUSTOM_KERNEL_IMGSENSOR="ov23850_mipi_raw s5k5e2ya_mipi_raw imx258_mipi_raw ov5695_mipi_raw"
 CONFIG_MTK_CMDQ=y
 
 #CONFIG_MTK_FLASHLIGHT=y

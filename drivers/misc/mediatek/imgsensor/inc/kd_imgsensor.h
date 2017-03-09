@@ -153,6 +153,8 @@ NSFeature :  : RAWSensorInfo < _id >  :  : getFlickerPara \
 #define OV5650_SENSOR_ID                        0x5651
 #define OV5650MIPI_SENSOR_ID                    0x5651
 #define OV5648MIPI_SENSOR_ID                    0x5648
+//modified by wangjie ,2016/12/21
+#define OV5695MIPI_SENSOR_ID                    0x5695
 #define OV5647_SENSOR_ID                        0x5647
 #define OV5647MIPI_SENSOR_ID                    0x5647
 #define OV5645MIPI_SENSOR_ID                    0x5645
@@ -322,6 +324,8 @@ NSFeature :  : RAWSensorInfo < _id >  :  : getFlickerPara \
 #define SENSOR_DRVNAME_OV5650MIPI_RAW           "ov5650mipiraw"
 #define SENSOR_DRVNAME_OV5650_RAW               "ov5650raw"
 #define SENSOR_DRVNAME_OV5648_MIPI_RAW          "ov5648mipi"
+//modified by wangjie ,2016/12/21
+#define SENSOR_DRVNAME_OV5695_MIPI_RAW          "ov5695mipiraw"
 #define SENSOR_DRVNAME_OV5647_RAW               "ov5647"
 #define SENSOR_DRVNAME_OV5642_RAW               "ov5642raw"
 #define SENSOR_DRVNAME_OV5642_MIPI_YUV          "ov5642mipiyuv"

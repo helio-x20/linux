@@ -829,11 +829,11 @@ typedef struct {
 } SET_SENSOR_CALIBRATION_DATA_STRUCT, *PSET_SENSOR_CALIBRATION_DATA_STRUCT;
 
 
-
+//wangjie add the third camera data channel, 20170104
 typedef struct {
-	MSDK_SCENARIO_ID_ENUM ScenarioId[2];
-	ACDK_SENSOR_INFO_STRUCT * pInfo[2];
-	ACDK_SENSOR_CONFIG_STRUCT * pConfig[2];
+	MSDK_SCENARIO_ID_ENUM ScenarioId[3];
+	ACDK_SENSOR_INFO_STRUCT * pInfo[3];
+	ACDK_SENSOR_CONFIG_STRUCT * pConfig[3];
 } ACDK_SENSOR_GETINFO_STRUCT, *PACDK_SENSOR_GETINFO_STRUCT;
 
 typedef struct {
@@ -857,7 +857,7 @@ typedef struct {
 } ACDK_SENSOR_CONTROL_STRUCT;
 
 typedef struct {
-	ACDK_SENSOR_RESOLUTION_INFO_STRUCT *pResolution[2];
+	ACDK_SENSOR_RESOLUTION_INFO_STRUCT *pResolution[3];
 } ACDK_SENSOR_PRESOLUTION_STRUCT;
 
 
@@ -901,10 +901,11 @@ typedef struct {
 
 #ifdef CONFIG_COMPAT
 /* Redifne structures for compat_ioctl */
+//wangjie add the third camera data channel, 20170104
 typedef struct {
-	MSDK_SCENARIO_ID_ENUM ScenarioId[2];
-	compat_uptr_t pInfo[2];
-	compat_uptr_t pConfig[2];
+	MSDK_SCENARIO_ID_ENUM ScenarioId[3];
+	compat_uptr_t pInfo[3];
+	compat_uptr_t pConfig[3];
 } COMPAT_ACDK_SENSOR_GETINFO_STRUCT;
 
 typedef struct {
@@ -928,7 +929,7 @@ typedef struct {
 } COMPAT_ACDK_SENSOR_CONTROL_STRUCT;
 
 typedef struct {
-	compat_uptr_t pResolution[2];
+	compat_uptr_t pResolution[3];
 } COMPAT_ACDK_SENSOR_PRESOLUTION_STRUCT;
 
 #endif
@@ -982,10 +983,10 @@ typedef struct {
 	MUINT32(*SensorControl)(MSDK_SCENARIO_ID_ENUM ScenarioId, MSDK_SENSOR_EXPOSURE_WINDOW_STRUCT *pImageWindow, MSDK_SENSOR_CONFIG_STRUCT *pSensorConfigData);
 	MUINT32(*SensorClose)(void);
 } MULTI_SENSOR_FUNCTION_STRUCT, *PMULTI_SENSOR_FUNCTION_STRUCT;
-
+//wangjie add the third camera data channel, 20170104
 typedef struct {
 	MUINT32(*SensorOpen)(void);
-	MUINT32(*SensorGetInfo)(MUINT32 *pScenarioId[2], MSDK_SENSOR_INFO_STRUCT * pSensorInfo[2], MSDK_SENSOR_CONFIG_STRUCT *pSensorConfigData[2]);
+	MUINT32(*SensorGetInfo)(MUINT32 *pScenarioId[3], MSDK_SENSOR_INFO_STRUCT * pSensorInfo[2], MSDK_SENSOR_CONFIG_STRUCT *pSensorConfigData[2]);
 	MUINT32(*SensorGetResolution)(MSDK_SENSOR_RESOLUTION_INFO_STRUCT * pSensorResolution[2]);
 	MUINT32(*SensorFeatureControl)(CAMERA_DUAL_CAMERA_SENSOR_ENUM InvokeCamera, MSDK_SENSOR_FEATURE_ENUM FeatureId, MUINT8 *pFeaturePara, MUINT32 *pFeatureParaLen);
 	MUINT32(*SensorControl)(CAMERA_DUAL_CAMERA_SENSOR_ENUM InvokeCamera, MSDK_SCENARIO_ID_ENUM ScenarioId, MSDK_SENSOR_EXPOSURE_WINDOW_STRUCT *pImageWindow, MSDK_SENSOR_CONFIG_STRUCT *pSensorConfigData);
@@ -1019,10 +1020,12 @@ typedef struct {
 #define KDIMGSENSOR_DUAL_MASK_LSB 0x0000FFFF
 
 #define KDIMGSENSOR_NOSENSOR    "non_sensor"
-
-#define KDIMGSENSOR_MAX_INVOKE_DRIVERS  (2)
+//wangjie add the third camera data channel, 20170104
+#define KDIMGSENSOR_MAX_INVOKE_DRIVERS  (3)
 #define KDIMGSENSOR_INVOKE_DRIVER_0     (0)
 #define KDIMGSENSOR_INVOKE_DRIVER_1     (1)
+#define KDIMGSENSOR_INVOKE_DRIVER_2     (2)
+
 
 /* For sensor synchronize the exposure time / sensor gain and isp gain. */
 typedef struct {

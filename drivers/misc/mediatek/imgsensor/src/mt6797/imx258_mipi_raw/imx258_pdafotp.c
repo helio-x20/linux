@@ -101,7 +101,7 @@ bool read_imx258_eeprom( kal_uint16 addr, BYTE* data, kal_uint32 size){
 
 bool read_imx258_eeprom_SPC( kal_uint16 addr, BYTE* data, kal_uint32 size){
 
-	addr = 0x0F73;//0x0F73;
+	addr = 0x0F6B;//0x0F73;//0x0F73;
 	size = 126;
 
 	LOG_INF("read imx258 eeprom, size = %d\n", size);

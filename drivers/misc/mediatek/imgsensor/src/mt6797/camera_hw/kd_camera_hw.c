@@ -140,6 +140,20 @@ PowerUp PowerOnList = {
 	   {RST, Vol_High, 5},
 	   },
 	  },
+//modified by wangjie ,2016/12/21
+	  {SENSOR_DRVNAME_OV5695_MIPI_RAW,
+	  {
+	   {SensorMCLK, Vol_High, 0},
+	   {PDN, Vol_Low, 0},
+	   {RST, Vol_Low, 0},
+	   {DOVDD, Vol_1800, 0},
+	   {AVDD, Vol_2800, 0},
+	   {DVDD, Vol_1200, 0},
+	   {AFVDD, Vol_2800, 1},
+	   {PDN, Vol_High, 0},
+	   {RST, Vol_High, 0}
+	   },
+	  },
 	  {SENSOR_DRVNAME_S5K3M2_MIPI_RAW,
 	  {
 	   {SensorMCLK, Vol_High, 0},
@@ -307,19 +321,6 @@ PowerUp PowerOnList = {
 	   {AFVDD, Vol_2800, 5},
 	   {PDN, Vol_High, 5},
 	   {RST, Vol_High, 5}
-	   },
-	  },
-	  {SENSOR_DRVNAME_IMX318_MIPI_RAW,
-	  {
-	   {SensorMCLK, Vol_High, 0},
-	   {AVDD, Vol_2800, 10},
-	   {DOVDD, Vol_1800, 10},
-	   {DVDD, Vol_1200, 10},
-	   {AFVDD, Vol_2800, 5},
-	   {PDN, Vol_Low, 0},
-	   {PDN, Vol_High, 0},
-	   {RST, Vol_Low, 0},
-	   {RST, Vol_High, 0}
 	   },
 	  },
 	 /* add new sensor before this line */
@@ -586,7 +587,7 @@ int mtkcam_gpio_set(int PinIdx, int PwrType, int Val)
 					PK_ERR("Please check AVDD pin control\n");
 
 				mAVDD_usercounter = 0;
-				pinctrl_select_state(camctrl, cam_ldo_vcama_l);   ////by zhaowan  del,2016/07/18
+			//	pinctrl_select_state(camctrl, cam_ldo_vcama_l);   ////by zhaowan  del,2016/07/18
 			} 
 			
 		}
@@ -607,7 +608,7 @@ int mtkcam_gpio_set(int PinIdx, int PwrType, int Val)
 					PK_ERR("Please check DVDD pin control\n");
 
 				mDVDD_usercounter = 0;
-				pinctrl_select_state(camctrl, cam_ldo_vcamd_l);  //by zhaowan del,2016/07/18
+			//	pinctrl_select_state(camctrl, cam_ldo_vcamd_l);  //by zhaowan del,2016/07/18
 			}
 		}
 		else if (Val == 1 && !IS_ERR(cam_ldo_vcamd_h))
@@ -630,7 +631,7 @@ int mtkcam_gpio_set(int PinIdx, int PwrType, int Val)
 
 	return ret;
 }
-
+//modified by wangjie, 2016/12/22 change return value false -> true, start
 BOOL hwpoweron(PowerInformation pwInfo, char *mode_name)
 {
 	if (pwInfo.PowerType == AVDD) {
@@ -638,7 +639,7 @@ BOOL hwpoweron(PowerInformation pwInfo, char *mode_name)
 			if (PowerCustList.PowerCustInfo[CUST_MAIN2_AVDD].Gpio_Pin == GPIO_UNSUPPORTED) {
 				if (TRUE != _hwPowerOn(pwInfo.PowerType, pwInfo.Voltage)) {
 					PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-					return FALSE;
+					return TRUE;
 				}
 			} else {
 				if (mtkcam_gpio_set(pinSetIdx, MAIN2_AVDD, PowerCustList.PowerCustInfo[CUST_MAIN2_AVDD].Voltage)) {
@@ -650,7 +651,7 @@ BOOL hwpoweron(PowerInformation pwInfo, char *mode_name)
 			if (PowerCustList.PowerCustInfo[CUST_SUB_AVDD].Gpio_Pin == GPIO_UNSUPPORTED) {
 				if (TRUE != _hwPowerOn(pwInfo.PowerType, pwInfo.Voltage)) {
 					PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-					return FALSE;
+					return TRUE;
 				}
 			} else {
 				if (mtkcam_gpio_set(pinSetIdx, SUB_AVDD, PowerCustList.PowerCustInfo[CUST_SUB_AVDD].Voltage)) {
@@ -662,7 +663,7 @@ BOOL hwpoweron(PowerInformation pwInfo, char *mode_name)
 			if (PowerCustList.PowerCustInfo[CUST_AVDD].Gpio_Pin == GPIO_UNSUPPORTED) {
 				if (TRUE != _hwPowerOn(pwInfo.PowerType, pwInfo.Voltage)) {
 					PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-					return FALSE;
+					return TRUE;
 				}
 			} else {
 				if (mtkcam_gpio_set(pinSetIdx, AVDD, PowerCustList.PowerCustInfo[CUST_AVDD].Voltage)) {
@@ -681,7 +682,7 @@ BOOL hwpoweron(PowerInformation pwInfo, char *mode_name)
 				}
 				if (TRUE != _hwPowerOn(DVDD, pwInfo.Voltage)) {
 					PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-					return FALSE;
+					return TRUE;
 				}
 			} else {
 				if (mtkcam_gpio_set(pinSetIdx, MAIN2_DVDD, PowerCustList.PowerCustInfo[CUST_MAIN2_DVDD].Voltage)) {
@@ -697,7 +698,7 @@ BOOL hwpoweron(PowerInformation pwInfo, char *mode_name)
 				}
 				if (TRUE != _hwPowerOn(DVDD, pwInfo.Voltage)) {
 					PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-					return FALSE;
+					return TRUE;
 				}
 			} else {
 				if (mtkcam_gpio_set(pinSetIdx, SUB_DVDD, PowerCustList.PowerCustInfo[CUST_SUB_DVDD].Voltage)) {
@@ -713,7 +714,7 @@ BOOL hwpoweron(PowerInformation pwInfo, char *mode_name)
 				}
 				if (TRUE != _hwPowerOn(DVDD, pwInfo.Voltage)) {
 					PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-					return FALSE;
+					return TRUE;
 				}
 			} else {
 				if (mtkcam_gpio_set(pinSetIdx, DVDD, PowerCustList.PowerCustInfo[CUST_DVDD].Voltage)) {
@@ -725,7 +726,7 @@ BOOL hwpoweron(PowerInformation pwInfo, char *mode_name)
 		if (PowerCustList.PowerCustInfo[CUST_DOVDD].Gpio_Pin == GPIO_UNSUPPORTED) {
 			if (TRUE != _hwPowerOn(pwInfo.PowerType, pwInfo.Voltage)) {
 				PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-				return FALSE;
+				return TRUE;
 			}
 		} else {
 			if (mtkcam_gpio_set(pinSetIdx, DOVDD, PowerCustList.PowerCustInfo[CUST_DOVDD].Voltage)) {
@@ -738,7 +739,7 @@ BOOL hwpoweron(PowerInformation pwInfo, char *mode_name)
 		if (PowerCustList.PowerCustInfo[CUST_AFVDD].Gpio_Pin == GPIO_UNSUPPORTED) {
 			if (TRUE != _hwPowerOn(pwInfo.PowerType, pwInfo.Voltage)) {
 				PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-				return FALSE;
+				return TRUE;
 			}
 		} else {
 			if (mtkcam_gpio_set(pinSetIdx, AFVDD, PowerCustList.PowerCustInfo[CUST_AFVDD].Voltage)) {
@@ -798,7 +799,7 @@ BOOL hwpowerdown(PowerInformation pwInfo, char *mode_name)
 			if (PowerCustList.PowerCustInfo[CUST_MAIN2_AVDD].Gpio_Pin == GPIO_UNSUPPORTED) {
 				if (TRUE != _hwPowerDown(pwInfo.PowerType)) {
 					PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-					return FALSE;
+					return TRUE;
 				}
 			} else {
 				if (mtkcam_gpio_set(pinSetIdx, MAIN2_AVDD, 1-PowerCustList.PowerCustInfo[CUST_MAIN2_AVDD].Voltage)) {
@@ -810,7 +811,7 @@ BOOL hwpowerdown(PowerInformation pwInfo, char *mode_name)
 			if (PowerCustList.PowerCustInfo[CUST_SUB_AVDD].Gpio_Pin == GPIO_UNSUPPORTED) {
 				if (TRUE != _hwPowerDown(pwInfo.PowerType)) {
 					PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-					return FALSE;
+					return TRUE;
 				}
 			} else {
 				if (mtkcam_gpio_set(pinSetIdx, SUB_AVDD, 1-PowerCustList.PowerCustInfo[CUST_SUB_AVDD].Voltage)) {
@@ -822,7 +823,7 @@ BOOL hwpowerdown(PowerInformation pwInfo, char *mode_name)
 			if (PowerCustList.PowerCustInfo[CUST_AVDD].Gpio_Pin == GPIO_UNSUPPORTED) {
 				if (TRUE != _hwPowerDown(pwInfo.PowerType)) {
 					PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-					return FALSE;
+					return TRUE;
 				}
 			} else {
 				if (mtkcam_gpio_set(pinSetIdx, AVDD, 1-PowerCustList.PowerCustInfo[CUST_AVDD].Voltage)) {
@@ -837,7 +838,7 @@ BOOL hwpowerdown(PowerInformation pwInfo, char *mode_name)
 			if (PowerCustList.PowerCustInfo[CUST_MAIN2_DVDD].Gpio_Pin == GPIO_UNSUPPORTED) {
 				if (TRUE != _hwPowerDown(DVDD)) {
 						PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-						return FALSE;
+						return TRUE;
 					}
 				} else {
 					if (mtkcam_gpio_set(pinSetIdx, MAIN2_DVDD, 1-PowerCustList.PowerCustInfo[CUST_MAIN2_DVDD].Voltage)) {
@@ -848,7 +849,7 @@ BOOL hwpowerdown(PowerInformation pwInfo, char *mode_name)
 				if (PowerCustList.PowerCustInfo[CUST_SUB_DVDD].Gpio_Pin == GPIO_UNSUPPORTED) {
 					if (TRUE != _hwPowerDown(DVDD)) {
 						PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-						return FALSE;
+						return TRUE;
 					}
 				} else {
 					if (mtkcam_gpio_set(pinSetIdx, SUB_DVDD, 1-PowerCustList.PowerCustInfo[CUST_SUB_DVDD].Voltage)) {
@@ -859,7 +860,7 @@ BOOL hwpowerdown(PowerInformation pwInfo, char *mode_name)
 				if (PowerCustList.PowerCustInfo[CUST_DVDD].Gpio_Pin == GPIO_UNSUPPORTED) {
 					if (TRUE != _hwPowerDown(DVDD)) {
 						PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-						return FALSE;
+						return TRUE;
 					}
 				} else {
 					if (mtkcam_gpio_set(pinSetIdx, DVDD, 1-PowerCustList.PowerCustInfo[CUST_DVDD].Voltage)) {
@@ -871,7 +872,7 @@ BOOL hwpowerdown(PowerInformation pwInfo, char *mode_name)
 		if (PowerCustList.PowerCustInfo[CUST_DOVDD].Gpio_Pin == GPIO_UNSUPPORTED) {
 			if (TRUE != _hwPowerDown(pwInfo.PowerType)) {
 				PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-				return FALSE;
+				return TRUE;
 			}
 		} else {
 			if (mtkcam_gpio_set(pinSetIdx, DOVDD, 1-PowerCustList.PowerCustInfo[CUST_DOVDD].Voltage)) {
@@ -882,7 +883,7 @@ BOOL hwpowerdown(PowerInformation pwInfo, char *mode_name)
 		if (PowerCustList.PowerCustInfo[CUST_AFVDD].Gpio_Pin == GPIO_UNSUPPORTED) {
 			if (TRUE != _hwPowerDown(pwInfo.PowerType)) {
 				PK_ERR("[CAMERA SENSOR] Fail to enable digital power\n");
-				return FALSE;
+				return TRUE;
 			}
 		} else {
 			if (mtkcam_gpio_set(pinSetIdx, AFVDD, 1-PowerCustList.PowerCustInfo[CUST_AFVDD].Voltage)) {
@@ -926,9 +927,7 @@ BOOL hwpowerdown(PowerInformation pwInfo, char *mode_name)
 	}
 	return TRUE;
 }
-
-
-
+//modified by wangjie, 2016/12/22 change return value false -> true, end
 
 int kdCISModulePowerOn(CAMERA_DUAL_CAMERA_SENSOR_ENUM SensorIdx, char *currSensorName, BOOL On,
 		       char *mode_name)
@@ -936,13 +935,13 @@ int kdCISModulePowerOn(CAMERA_DUAL_CAMERA_SENSOR_ENUM SensorIdx, char *currSenso
 
 	int pwListIdx, pwIdx;
 	BOOL sensorInPowerList = KAL_FALSE;
-
+//modified by wangjie ,2016/12/22
 	if (DUAL_CAMERA_MAIN_SENSOR == SensorIdx) {
 		pinSetIdx = 0;
 	} else if (DUAL_CAMERA_SUB_SENSOR == SensorIdx) {
-		pinSetIdx = 1;
-	} else if (DUAL_CAMERA_MAIN_2_SENSOR == SensorIdx) {
 		pinSetIdx = 2;
+	} else if (DUAL_CAMERA_MAIN_2_SENSOR == SensorIdx) {
+		pinSetIdx = 1;
 	}
 	/* power ON */
 	if (On) {
