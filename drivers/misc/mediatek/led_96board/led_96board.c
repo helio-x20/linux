@@ -18,12 +18,14 @@
 
 
 
-#define  led_0     196|0x80000000
-#define  led_1     197|0x80000000
-#define  led_2     198|0x80000000
-#define  led_3     199|0x80000000
-#define  led_4     200|0x80000000
-#define  led_5     201|0x80000000
+#define  led_0     138|0x80000000
+#define  led_1     139|0x80000000
+#define  led_2     140|0x80000000
+#define  led_3     135|0x80000000
+#define  led_4     136|0x80000000
+#define  led_5     137|0x80000000
+
+
 
 
 
@@ -45,8 +47,8 @@ static void init_leds(void)
 	gpio_set(led_4,GPIO_MODE_00,GPIO_DIR_OUT);
 	gpio_set(led_5,GPIO_MODE_00,GPIO_DIR_OUT);
 
-	mt_set_gpio_out(led_0,GPIO_OUT_ZERO);
-	mt_set_gpio_out(led_1,GPIO_OUT_ZERO);
+	mt_set_gpio_out(led_0,GPIO_OUT_ONE);
+	mt_set_gpio_out(led_1,GPIO_OUT_ONE);
 	mt_set_gpio_out(led_2,GPIO_OUT_ZERO);
 	mt_set_gpio_out(led_3,GPIO_OUT_ZERO);
 	mt_set_gpio_out(led_4,GPIO_OUT_ZERO);
