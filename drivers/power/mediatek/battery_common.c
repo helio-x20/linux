@@ -87,6 +87,10 @@
 #include <mach/mt_charging.h>
 #include <mach/mt_pmic.h>
 
+/*Add by lilin for X20 AUTO Switch begin*/
+#include <mt-plat/mt_gpio.h>
+#include <mach/gpio_const.h>
+/*Add by lilin for X20 AUTO Switch end*/
 
 #if defined(CONFIG_MTK_DUAL_INPUT_CHARGER_SUPPORT)
 #include <mt-plat/diso.h>
@@ -192,6 +196,10 @@ struct battery_custom_data batt_cust_data;
 #define Get_META_BAT_VOL _IOW('k', 10, int)
 #define Get_META_BAT_SOC _IOW('k', 11, int)
 /* add for meta tool----------------------------------------- */
+
+/*Add by lilin for X20 AUTO Switch begin*/
+#define GPIO_USB_SWITCH_PIN         (GPIO86 | 0x80000000)
+/*Add by lilin for X20 AUTO Switch end*/
 
 static struct class *adc_cali_class;
 static int adc_cali_major;
@@ -2841,6 +2849,9 @@ static void mt_battery_charger_detect_check(void)
 		unsigned int pwr;
 #endif
 	if (upmu_is_chr_det() == KAL_TRUE) {
+/*Add by lilin for X20 AUTO Switch begin*/
+		mt_set_gpio_out(GPIO_USB_SWITCH_PIN, GPIO_OUT_ZERO);
+/*Add by lilin for X20 AUTO Switch end*/
 		wake_lock(&battery_suspend_lock);
 
 #if !defined(CONFIG_MTK_DUAL_INPUT_CHARGER_SUPPORT)
@@ -2892,7 +2903,9 @@ static void mt_battery_charger_detect_check(void)
 
 	} else {
 		wake_unlock(&battery_suspend_lock);
-
+/*Add by lilin for X20 AUTO Switch begin*/
+		mt_set_gpio_out(GPIO_USB_SWITCH_PIN, GPIO_OUT_ONE);
+/*Add by lilin for X20 AUTO Switch end*/
 		BMT_status.charger_exist = KAL_FALSE;
 		BMT_status.charger_type = CHARGER_UNKNOWN;
 		BMT_status.bat_full = KAL_FALSE;
@@ -4902,6 +4915,20 @@ static int battery_pm_event(struct notifier_block *notifier, unsigned long pm_ev
 	return NOTIFY_OK;
 }
 
+/*Add by lilin for X20 AUTO Switch begin*/
+static void usb_switch_gpio_init(void)
+{
+	mt_set_gpio_mode(GPIO_USB_SWITCH_PIN,GPIO_MODE_00);
+    mt_set_gpio_dir(GPIO_USB_SWITCH_PIN,GPIO_DIR_OUT);
+	if (upmu_is_chr_det() == KAL_TRUE)
+		mt_set_gpio_out(GPIO_USB_SWITCH_PIN, GPIO_OUT_ZERO);
+	else
+		mt_set_gpio_out(GPIO_USB_SWITCH_PIN, GPIO_OUT_ONE);
+	
+	return;
+}
+/*Add by lilin for X20 AUTO Switch end*/
+
 static struct notifier_block battery_pm_notifier_block = {
 	.notifier_call = battery_pm_event,
 	.priority = 0,
@@ -4926,7 +4953,9 @@ static int __init battery_init(void)
 	}
 #endif
 #endif
-
+/*Add by lilin for X20 AUTO Switch begin*/
+	usb_switch_gpio_init();
+/*Add by lilin for X20 AUTO Switch end*/
 	ret = platform_driver_register(&battery_driver);
 	if (ret) {
 		battery_log(BAT_LOG_CRTI,
