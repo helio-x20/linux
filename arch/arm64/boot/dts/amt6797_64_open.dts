@@ -337,7 +337,7 @@
 &pio {
 	mt8193hdmi_power_default: 8193hdmi_power_def {
 		pins_cmd_dat {
-			pins = <PINMUX_GPIO195__FUNC_GPIO195>;
+			pins = <PINMUX_GPIO242__FUNC_GPIO242>;
 			slew-rate = <1>;
 			bias-pull-up = <00>;
 			output-low;
@@ -345,7 +345,7 @@
 	};
 	mt8193hdmi_power_up: 8193hdmi_power_high {
 		pins_cmd_dat {
-			pins = <PINMUX_GPIO195__FUNC_GPIO195>;
+			pins = <PINMUX_GPIO242__FUNC_GPIO242>;
 			slew-rate = <1>;
 			bias-pull-up = <00>;
 			output-high;
@@ -364,7 +364,7 @@
 &pio {
 	mt8193hdmi_rst_default: 8193hdmi_rst_def {
 		pins_cmd_dat {
-			pins = <PINMUX_GPIO193__FUNC_GPIO193>;
+			pins = <PINMUX_GPIO244__FUNC_GPIO244>;
 			slew-rate = <1>;
 			bias-pull-up = <00>;
 			output-low;
@@ -372,7 +372,7 @@
 	};
 	mt8193hdmi_rst_high: 8193hdmi_rst_high {
 		pins_cmd_dat {
-			pins = <PINMUX_GPIO193__FUNC_GPIO193>;
+			pins = <PINMUX_GPIO244__FUNC_GPIO244>;
 			slew-rate = <1>;
 			bias-pull-up = <00>;
 			output-high;

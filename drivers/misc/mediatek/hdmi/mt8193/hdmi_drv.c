@@ -82,10 +82,10 @@ char *power_pin_name[2] = {"power_default", "power_up"};
 /* HDMI Timer */
 /*----------------------------------------------------------------------------*/
 
-#define  HDMI_POWER_5V_EN_195         195|0x80000000
+#define  HDMI_POWER_5V_EN              242|0x80000000
 //#define  HDMI_RESET_193               193|0x80000000
-#define  led_2                        198|0x80000000
-#define  led_3                        199|0x80000000
+#define  led_2                        140|0x80000000
+#define  led_3                        135|0x80000000
 
 static struct timer_list r_hdmi_timer;
 static struct timer_list r_cec_timer;
@@ -443,9 +443,9 @@ int mt8193_power_on(void)
 	gpio_direction_output(bus_switch_pin, 1);
 #endif*/
 
-	mt_set_gpio_mode(HDMI_POWER_5V_EN_195, GPIO_MODE_00);	
-    mt_set_gpio_dir(HDMI_POWER_5V_EN_195, GPIO_DIR_OUT);	
-    mt_set_gpio_out(HDMI_POWER_5V_EN_195, GPIO_OUT_ONE);
+	mt_set_gpio_mode(HDMI_POWER_5V_EN, GPIO_MODE_00);	
+    mt_set_gpio_dir(HDMI_POWER_5V_EN, GPIO_DIR_OUT);	
+    mt_set_gpio_out(HDMI_POWER_5V_EN, GPIO_OUT_ONE);
 	
     printk("[dangchaobing]mt8193_power_on");
 	
@@ -540,9 +540,9 @@ void mt8193_power_off(void)
 	gpio_direction_output(bus_switch_pin, 0);
 #endif*/
 
-    mt_set_gpio_mode(HDMI_POWER_5V_EN_195, GPIO_MODE_00);	
-    mt_set_gpio_dir(HDMI_POWER_5V_EN_195, GPIO_DIR_OUT);	
-    mt_set_gpio_out(HDMI_POWER_5V_EN_195, GPIO_OUT_ZERO);
+    mt_set_gpio_mode(HDMI_POWER_5V_EN, GPIO_MODE_00);	
+    mt_set_gpio_dir(HDMI_POWER_5V_EN, GPIO_DIR_OUT);	
+    mt_set_gpio_out(HDMI_POWER_5V_EN, GPIO_OUT_ZERO);
 	
 	printk("[dangchaobing]mt8193_power_off");
 	

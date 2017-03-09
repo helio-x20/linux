@@ -88,9 +88,9 @@ static struct i2c_client *mt8193_i2c_client;
 static const struct i2c_device_id mt8193_i2c_id[] = {{MT8193_DEVICE_NAME, 0}, {} };
 #ifdef HDMI_OPEN_PACAKAGE_SUPPORT
 struct regulator *vldo28_pmu =NULL;
-struct regulator *vrf12_pmu =NULL;
+struct regulator *vcamd_pmu =NULL;
 struct regulator *vibr_pmu =NULL;
-struct regulator *vmipi_pmu =NULL;
+struct regulator *vcamio_pmu =NULL;
 struct device *mt8193_dev_context =NULL;
 static const struct of_device_id mt8193_i2c_mhl_id[] = {
 		{.compatible = "mediatek,ext_disp"},
@@ -279,42 +279,42 @@ static int mt8193_power_init(struct platform_device *pdev,bool switch_power)
 	/* get regulator supply node */
 	mt8193_dev_context->of_node = of_find_compatible_node(NULL,NULL,"mediatek,mt_pmic_regulator_supply"); 	
 
-	pr_err("mt8193_power_init get mt_pmic_regulator_supply!\n");
+	//pr_err("mt8193_power_init get mt_pmic_regulator_supply!\n");
 	if(switch_power == 1)
 	{
-		if (vmipi_pmu == NULL) {
-		    vmipi_pmu = regulator_get(mt8193_dev_context, "vmipi");	
+		if (vcamio_pmu == NULL) {
+		    vcamio_pmu = regulator_get(mt8193_dev_context, "vcamio");	
 	    }
-	    if (IS_ERR(vmipi_pmu)){
-		pr_err("mt8193_power_init vmipi_pmu error %p!!!!!!!!!!!!!!\n", vmipi_pmu);
+	    if (IS_ERR(vcamio_pmu)){
+		pr_err("mt8193_power_init vmipi_pmu error %p!!!!!!!!!!!!!!\n", vcamio_pmu);
 		ret = -1;
 		goto exit;
 	} else {
-		pr_debug("mt8193_power_init vmipi_pmu init done %p\n", vmipi_pmu );
-		regulator_set_voltage(vmipi_pmu, 1800000, 1800000);
-		ret = regulator_enable(vmipi_pmu);
+		//pr_debug("mt8193_power_init vcamio_pmu init done %p\n", vcamio_pmu );
+		regulator_set_voltage(vcamio_pmu, 1800000, 1800000);
+		ret = regulator_enable(vcamio_pmu);
 		if(ret)
-			pr_err("regulator_enable vmipi failed!\n");
+			pr_err("regulator_enable vcamio failed!\n");
 		else
-			pr_err("regulator_enable vmipi pass!\n");
+			pr_err("regulator_enable vcamio pass!\n");
 	}
 	msleep(4);
 
-	if (vrf12_pmu == NULL) {
-		vrf12_pmu = regulator_get(mt8193_dev_context, "vrf12");	
+	if (vcamd_pmu == NULL) {
+		vcamd_pmu = regulator_get(mt8193_dev_context, "vcamd");	
 	}
-	if (IS_ERR(vrf12_pmu)) {
-		pr_err("mt8193_power_init vrf12_pmu error %p!!!!!!!!!!!!!!\n", vrf12_pmu);
+	if (IS_ERR(vcamd_pmu)) {
+		pr_err("mt8193_power_init vcamd_pmu error %p!!!!!!!!!!!!!!\n", vcamd_pmu);
 		ret = -1;
-		goto vrf12_pmu_exit;
+		goto vcamd_pmu_exit;
 	} else {
-		pr_debug("mt8193_power_init vrf12_pmu init done %p\n", vrf12_pmu );
-		regulator_set_voltage(vrf12_pmu, 1200000, 1200000);
-		ret = regulator_enable(vrf12_pmu);
+		//pr_debug("mt8193_power_init vcamd_pmu init done %p\n", vcamd_pmu );
+		regulator_set_voltage(vcamd_pmu, 1200000, 1200000);
+		ret = regulator_enable(vcamd_pmu);
 		if(ret)
-			pr_err("regulator_enable vrf12_pmu failed!\n");
+			pr_err("regulator_enable vcamd failed!\n");
 		else
-			pr_err("regulator_enable vrf12_pmu pass!\n");
+			pr_err("regulator_enable vcamd pass!\n");
 	}
 	msleep(8);
 
@@ -326,7 +326,7 @@ static int mt8193_power_init(struct platform_device *pdev,bool switch_power)
 		ret = -1;
 		goto vibr_pmu_exit;
 	} else {
-		pr_debug("mt8193_power_init vibr_pmu init done %p\n", vibr_pmu );
+		//pr_debug("mt8193_power_init vibr_pmu init done %p\n", vibr_pmu );
 		regulator_set_voltage(vibr_pmu, 3300000, 3300000);
 		ret = regulator_enable(vibr_pmu);
 		if(ret)
@@ -344,7 +344,7 @@ static int mt8193_power_init(struct platform_device *pdev,bool switch_power)
 		ret = -1;
 		goto vldo28_pmu_exit;
 	} else {
-		pr_debug("mt8193_power_init vldo28_pmu init done %p\n", vldo28_pmu );
+		//pr_debug("mt8193_power_init vldo28_pmu init done %p\n", vldo28_pmu );
 		regulator_set_voltage(vldo28_pmu, 2800000, 2800000);
 		ret = regulator_enable(vldo28_pmu);
 		if(ret)
@@ -377,39 +377,39 @@ static int mt8193_power_init(struct platform_device *pdev,bool switch_power)
 	}
 	else if (switch_power == 0)
 	{
-		if (vmipi_pmu == NULL) {
-		    vmipi_pmu = regulator_get(mt8193_dev_context, "vmipi");	
+		if (vcamio_pmu == NULL) {
+		    vcamio_pmu = regulator_get(mt8193_dev_context, "vcamio");	
 	    }
-	    if (IS_ERR(vmipi_pmu)){
-		pr_err("mt8193_power_init vmipi_pmu error %p!!!!!!!!!!!!!!\n", vmipi_pmu);
+	    if (IS_ERR(vcamio_pmu)){
+		pr_err("mt8193_power_init vcamio_pmu error %p!!!!!!!!!!!!!!\n", vcamio_pmu);
 		ret = -1;
 		goto exit;
 	} else {
-		pr_debug("mt8193_power_init vmipi_pmu init done %p\n", vmipi_pmu );
+		//pr_debug("mt8193_power_init vcamio_pmu init done %p\n", vcamio_pmu );
 		//regulator_set_voltage(vmipi_pmu, 1800000, 1800000);
-		ret = regulator_disable(vmipi_pmu);
+		ret = regulator_disable(vcamio_pmu);
 		if(ret)
-			pr_err("regulator_disable vmipi failed!\n");
+			pr_err("regulator_disable vcamio failed!\n");
 		else
-			pr_err("regulator_disable vmipi pass!\n");
+			pr_err("regulator_disable vcamio pass!\n");
 	}
 	//msleep(4);
 
-	if (vrf12_pmu == NULL) {
-		vrf12_pmu = regulator_get(mt8193_dev_context, "vrf12");	
+	if (vcamd_pmu == NULL) {
+		vcamd_pmu = regulator_get(mt8193_dev_context, "vcamd");	
 	}
-	if (IS_ERR(vrf12_pmu)) {
-		pr_err("mt8193_power_init vrf12_pmu error %p!!!!!!!!!!!!!!\n", vrf12_pmu);
+	if (IS_ERR(vcamd_pmu)) {
+		pr_err("mt8193_power_init vcamd_pmu error %p!!!!!!!!!!!!!!\n", vcamd_pmu);
 		ret = -1;
-		goto vrf12_pmu_exit;
+		goto vcamd_pmu_exit;
 	} else {
-		pr_debug("mt8193_power_init vrf12_pmu init done %p\n", vrf12_pmu );
+		//pr_debug("mt8193_power_init vrf12_pmu init done %p\n", vcamd_pmu );
 		//regulator_set_voltage(vrf12_pmu, 1200000, 1200000);
-		ret = regulator_disable(vrf12_pmu);
+		ret = regulator_disable(vcamd_pmu);
 		if(ret)
-			pr_err("regulator_disable vrf12_pmu failed!\n");
+			pr_err("regulator_disable vcamd failed!\n");
 		else
-			pr_err("regulator_disable vrf12_pmu pass!\n");
+			pr_err("regulator_disable vcamd pass!\n");
 	}
 	//msleep(8);
 
@@ -421,7 +421,7 @@ static int mt8193_power_init(struct platform_device *pdev,bool switch_power)
 		ret = -1;
 		goto vibr_pmu_exit;
 	} else {
-		pr_debug("mt8193_power_init vibr_pmu init done %p\n", vibr_pmu );
+		//pr_debug("mt8193_power_init vibr_pmu init done %p\n", vibr_pmu );
 		//regulator_set_voltage(vibr_pmu, 3300000, 3300000);
 		ret = regulator_disable(vibr_pmu);
 		if(ret)
@@ -477,9 +477,9 @@ rst_exit:
 vldo28_pmu_exit:
 	regulator_disable(vibr_pmu);
 vibr_pmu_exit:
-	regulator_disable(vrf12_pmu);
-vrf12_pmu_exit:
-	regulator_disable(vmipi_pmu);
+	regulator_disable(vcamd_pmu);
+vcamd_pmu_exit:
+	regulator_disable(vcamio_pmu);
 exit:
 	mt8193_dev_context->of_node = kd_node ;
 	return ret;

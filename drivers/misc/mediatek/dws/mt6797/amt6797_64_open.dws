@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--dct_version="2.2" buid_sn="160113" dws_modification_time="07.29.2016.11:10:42"-->
+<!--dct_version="2.2" buid_sn="160113" dws_modification_time="02.22.2017.13:18:45"-->
 <dct_cfg>
     <general chip="MT6797">
         <proj>k97_v1</proj>
@@ -1268,14 +1268,15 @@
             </gpio85>
             <gpio86>
                 <eint_mode>false</eint_mode>
-                <def_mode>1</def_mode>
-                <mode_arr>11111101</mode_arr>
+                <def_mode>0</def_mode>
+                <mode_arr>11000000</mode_arr>
                 <inpull_en>false</inpull_en>
                 <inpull_selhigh>false</inpull_selhigh>
-                <def_dir>IN</def_dir>
+                <def_dir>OUT</def_dir>
                 <in>true</in>
                 <out>true</out>
                 <out_high>false</out_high>
+                <varName0>GPIO_USB_SWITCH_PIN</varName0>
                 <smt>true</smt>
                 <ies>true</ies>
             </gpio86>
@@ -2713,10 +2714,10 @@
                 <mode_arr>11000000</mode_arr>
                 <inpull_en>true</inpull_en>
                 <inpull_selhigh>false</inpull_selhigh>
-                <def_dir>IN</def_dir>
-                <in>true</in>
+                <def_dir>OUT</def_dir>
+                <in>false</in>
                 <out>true</out>
-                <out_high>false</out_high>
+                <out_high>true</out_high>
                 <smt>true</smt>
                 <ies>true</ies>
             </gpio192>
@@ -2726,10 +2727,10 @@
                 <mode_arr>11000001</mode_arr>
                 <inpull_en>true</inpull_en>
                 <inpull_selhigh>false</inpull_selhigh>
-                <def_dir>IN</def_dir>
-                <in>true</in>
+                <def_dir>OUT</def_dir>
+                <in>false</in>
                 <out>true</out>
-                <out_high>false</out_high>
+                <out_high>true</out_high>
                 <smt>true</smt>
                 <ies>true</ies>
             </gpio193>
@@ -2740,9 +2741,9 @@
                 <inpull_en>true</inpull_en>
                 <inpull_selhigh>false</inpull_selhigh>
                 <def_dir>OUT</def_dir>
-                <in>true</in>
+                <in>false</in>
                 <out>true</out>
-                <out_high>false</out_high>
+                <out_high>true</out_high>
                 <smt>true</smt>
                 <ies>true</ies>
             </gpio194>
@@ -2753,20 +2754,20 @@
                 <inpull_en>true</inpull_en>
                 <inpull_selhigh>false</inpull_selhigh>
                 <def_dir>OUT</def_dir>
-                <in>true</in>
+                <in>false</in>
                 <out>true</out>
-                <out_high>false</out_high>
+                <out_high>true</out_high>
                 <smt>true</smt>
                 <ies>true</ies>
             </gpio195>
             <gpio196>
                 <eint_mode>false</eint_mode>
-                <def_mode>0</def_mode>
+                <def_mode>1</def_mode>
                 <mode_arr>11000001</mode_arr>
                 <inpull_en>true</inpull_en>
-                <inpull_selhigh>true</inpull_selhigh>
+                <inpull_selhigh>false</inpull_selhigh>
                 <def_dir>OUT</def_dir>
-                <in>true</in>
+                <in>false</in>
                 <out>true</out>
                 <out_high>true</out_high>
                 <smt>true</smt>
@@ -2774,12 +2775,12 @@
             </gpio196>
             <gpio197>
                 <eint_mode>false</eint_mode>
-                <def_mode>0</def_mode>
+                <def_mode>1</def_mode>
                 <mode_arr>11000001</mode_arr>
                 <inpull_en>true</inpull_en>
-                <inpull_selhigh>true</inpull_selhigh>
+                <inpull_selhigh>false</inpull_selhigh>
                 <def_dir>OUT</def_dir>
-                <in>true</in>
+                <in>false</in>
                 <out>true</out>
                 <out_high>true</out_high>
                 <smt>true</smt>
@@ -2973,10 +2974,10 @@
                 <mode_arr>11000001</mode_arr>
                 <inpull_en>true</inpull_en>
                 <inpull_selhigh>false</inpull_selhigh>
-                <def_dir>IN</def_dir>
-                <in>true</in>
+                <def_dir>OUT</def_dir>
+                <in>false</in>
                 <out>true</out>
-                <out_high>false</out_high>
+                <out_high>true</out_high>
                 <smt>true</smt>
                 <ies>true</ies>
             </gpio212>
@@ -2986,10 +2987,10 @@
                 <mode_arr>11000001</mode_arr>
                 <inpull_en>true</inpull_en>
                 <inpull_selhigh>false</inpull_selhigh>
-                <def_dir>IN</def_dir>
-                <in>true</in>
+                <def_dir>OUT</def_dir>
+                <in>false</in>
                 <out>true</out>
-                <out_high>false</out_high>
+                <out_high>true</out_high>
                 <smt>true</smt>
                 <ies>true</ies>
             </gpio213>
@@ -2999,10 +3000,10 @@
                 <mode_arr>11000001</mode_arr>
                 <inpull_en>true</inpull_en>
                 <inpull_selhigh>false</inpull_selhigh>
-                <def_dir>IN</def_dir>
-                <in>true</in>
+                <def_dir>OUT</def_dir>
+                <in>false</in>
                 <out>true</out>
-                <out_high>false</out_high>
+                <out_high>true</out_high>
                 <smt>true</smt>
                 <ies>true</ies>
             </gpio214>
@@ -3012,10 +3013,10 @@
                 <mode_arr>11000001</mode_arr>
                 <inpull_en>true</inpull_en>
                 <inpull_selhigh>false</inpull_selhigh>
-                <def_dir>IN</def_dir>
-                <in>true</in>
+                <def_dir>OUT</def_dir>
+                <in>false</in>
                 <out>true</out>
-                <out_high>false</out_high>
+                <out_high>true</out_high>
                 <smt>true</smt>
                 <ies>true</ies>
             </gpio215>
@@ -3790,6 +3791,11 @@
                 <channel>I2C_CHANNEL_8</channel>
                 <address>0x36</address>
             </device22>
+            <device23>
+                <varName>FTS_TOUCH</varName>
+                <channel>I2C_CHANNEL_4</channel>
+                <address>0x70</address>
+            </device23>
         </module>
         <module name="md1_eint">
             <count>4</count>
