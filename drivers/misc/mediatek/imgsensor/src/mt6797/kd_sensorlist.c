@@ -252,12 +252,13 @@ extern MULTI_SENSOR_FUNCTION_STRUCT2 kd_MultiSensorFunc;
 static MULTI_SENSOR_FUNCTION_STRUCT2 *g_pSensorFunc = &kd_MultiSensorFunc;
 /* static SENSOR_FUNCTION_STRUCT *g_pInvokeSensorFunc[KDIMGSENSOR_MAX_INVOKE_DRIVERS] = {NULL,NULL}; */
 /* static BOOL g_bEnableDriver[KDIMGSENSOR_MAX_INVOKE_DRIVERS] = {FALSE,FALSE}; */
-BOOL g_bEnableDriver[KDIMGSENSOR_MAX_INVOKE_DRIVERS] = {FALSE, FALSE};
-SENSOR_FUNCTION_STRUCT *g_pInvokeSensorFunc[KDIMGSENSOR_MAX_INVOKE_DRIVERS] = {NULL, NULL};
+//wangjie add the third camera data channel, 20170104
+BOOL g_bEnableDriver[KDIMGSENSOR_MAX_INVOKE_DRIVERS] = {FALSE, FALSE, FALSE};
+SENSOR_FUNCTION_STRUCT *g_pInvokeSensorFunc[KDIMGSENSOR_MAX_INVOKE_DRIVERS] = {NULL, NULL, NULL};
 /* static CAMERA_DUAL_CAMERA_SENSOR_ENUM g_invokeSocketIdx[KDIMGSENSOR_MAX_INVOKE_DRIVERS] = {DUAL_CAMERA_NONE_SENSOR,DUAL_CAMERA_NONE_SENSOR}; */
 /* static char g_invokeSensorNameStr[KDIMGSENSOR_MAX_INVOKE_DRIVERS][32] = {KDIMGSENSOR_NOSENSOR,KDIMGSENSOR_NOSENSOR}; */
-CAMERA_DUAL_CAMERA_SENSOR_ENUM g_invokeSocketIdx[KDIMGSENSOR_MAX_INVOKE_DRIVERS] = {DUAL_CAMERA_NONE_SENSOR, DUAL_CAMERA_NONE_SENSOR};
-char g_invokeSensorNameStr[KDIMGSENSOR_MAX_INVOKE_DRIVERS][32] = {KDIMGSENSOR_NOSENSOR, KDIMGSENSOR_NOSENSOR};
+CAMERA_DUAL_CAMERA_SENSOR_ENUM g_invokeSocketIdx[KDIMGSENSOR_MAX_INVOKE_DRIVERS] = {DUAL_CAMERA_NONE_SENSOR, DUAL_CAMERA_NONE_SENSOR, DUAL_CAMERA_NONE_SENSOR};
+char g_invokeSensorNameStr[KDIMGSENSOR_MAX_INVOKE_DRIVERS][32] = {KDIMGSENSOR_NOSENSOR, KDIMGSENSOR_NOSENSOR, KDIMGSENSOR_NOSENSOR};
 /* static int g_SensorExistStatus[3]={0,0,0}; */
 static wait_queue_head_t kd_sensor_wait_queue;
 bool setExpGainDoneFlag = 0;
@@ -1117,9 +1118,11 @@ MINT32 i = 0;
 
 MUINT32
 kd_MultiSensorGetInfo(
-MUINT32 *pScenarioId[2],
-MSDK_SENSOR_INFO_STRUCT *pSensorInfo[2],
-MSDK_SENSOR_CONFIG_STRUCT *pSensorConfigData[2])
+//wangjie add the third camera data channel, 20170104
+MUINT32 *pScenarioId[3],
+MSDK_SENSOR_INFO_STRUCT *pSensorInfo[3],
+MSDK_SENSOR_CONFIG_STRUCT *pSensorConfigData[3])
+
 {
     MUINT32 ret = ERROR_NONE;
     u32 i = 0;
@@ -1130,8 +1133,12 @@ MSDK_SENSOR_CONFIG_STRUCT *pSensorConfigData[2])
 	        if (DUAL_CAMERA_MAIN_SENSOR == g_invokeSocketIdx[i]) {
 	        ret = g_pInvokeSensorFunc[i]->SensorGetInfo((MSDK_SCENARIO_ID_ENUM)(*pScenarioId[0]), pSensorInfo[0], pSensorConfigData[0]);
 	        }
-	        else if ((DUAL_CAMERA_MAIN_2_SENSOR == g_invokeSocketIdx[i]) || (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i])) {
+	        else if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
 	        ret = g_pInvokeSensorFunc[i]->SensorGetInfo((MSDK_SCENARIO_ID_ENUM)(*pScenarioId[1]), pSensorInfo[1], pSensorConfigData[1]);
+
+	        } else if (DUAL_CAMERA_MAIN_2_SENSOR == g_invokeSocketIdx[i]) {
+		        ret = g_pInvokeSensorFunc[i]->SensorGetInfo((MSDK_SCENARIO_ID_ENUM)(*pScenarioId[2]), pSensorInfo[2], pSensorConfigData[2]);
+
 	        }
 
 	        if (ERROR_NONE != ret) {
@@ -1149,7 +1156,9 @@ MSDK_SENSOR_CONFIG_STRUCT *pSensorConfigData[2])
 
 MUINT32
 kd_MultiSensorGetResolution(
-MSDK_SENSOR_RESOLUTION_INFO_STRUCT *pSensorResolution[2])
+
+MSDK_SENSOR_RESOLUTION_INFO_STRUCT *pSensorResolution[3])
+//wangjie add the third camera data channel, 20170104
 {
     MUINT32 ret = ERROR_NONE;
     u32 i = 0;
@@ -1160,9 +1169,13 @@ MSDK_SENSOR_RESOLUTION_INFO_STRUCT *pSensorResolution[2])
         if (DUAL_CAMERA_MAIN_SENSOR == g_invokeSocketIdx[i]) {
         ret = g_pInvokeSensorFunc[i]->SensorGetResolution(pSensorResolution[0]);
         }
-        else if ((DUAL_CAMERA_MAIN_2_SENSOR == g_invokeSocketIdx[i]) || (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i])) {
+        else if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
         ret = g_pInvokeSensorFunc[i]->SensorGetResolution(pSensorResolution[1]);
         }
+
+		else if (DUAL_CAMERA_MAIN_2_SENSOR == g_invokeSocketIdx[i]) {
+			 ret = g_pInvokeSensorFunc[i]->SensorGetResolution(pSensorResolution[2]);
+	    }
 
         if (ERROR_NONE != ret) {
         PK_ERR("[%s]\n", __func__);
@@ -1795,8 +1808,10 @@ inline static int adopt_CAMERA_HW_CheckIsAlive(void)
 inline static int adopt_CAMERA_HW_GetResolution(void *pBuf)
 {
     /* ToDo: remove print */
+
     ACDK_SENSOR_PRESOLUTION_STRUCT *pBufResolution =  (ACDK_SENSOR_PRESOLUTION_STRUCT *)pBuf;
-	ACDK_SENSOR_RESOLUTION_INFO_STRUCT* pRes[2] = { NULL, NULL };
+	ACDK_SENSOR_RESOLUTION_INFO_STRUCT* pRes[3] = { NULL, NULL, NULL };
+
     PK_XLOG_INFO("[CAMERA_HW] adopt_CAMERA_HW_GetResolution, pBuf: %p\n", pBuf);
 	pRes[0] = (ACDK_SENSOR_RESOLUTION_INFO_STRUCT* )kmalloc(sizeof(MSDK_SENSOR_RESOLUTION_INFO_STRUCT), GFP_KERNEL);
 	if (pRes[0] == NULL) {
@@ -1809,15 +1824,28 @@ inline static int adopt_CAMERA_HW_GetResolution(void *pBuf)
 		PK_ERR(" ioctl allocate mem failed\n");
 		return -ENOMEM;
 	}
+//wangjie add the third camera data channel, 20170104
+	pRes[2] = (ACDK_SENSOR_RESOLUTION_INFO_STRUCT* )kmalloc(sizeof(MSDK_SENSOR_RESOLUTION_INFO_STRUCT), GFP_KERNEL);
+	if (pRes[2] == NULL) {
+		kfree(pRes[0]);
+		kfree(pRes[1]);
+		PK_ERR(" ioctl allocate mem failed\n");
+		return -ENOMEM;
+	}
+
 
 
     if (g_pSensorFunc) {
 		g_pSensorFunc->SensorGetResolution(pRes);
 		if (copy_to_user((void __user *) (pBufResolution->pResolution[0]) , (void *)pRes[0] , sizeof(MSDK_SENSOR_RESOLUTION_INFO_STRUCT))) {
-			PK_ERR("copy to user failed\n");
+			PK_ERR("000copy to user failed\n");
 		}
 		if (copy_to_user((void __user *) (pBufResolution->pResolution[1]) , (void *)pRes[1] , sizeof(MSDK_SENSOR_RESOLUTION_INFO_STRUCT))) {
-			PK_ERR("copy to user failed\n");
+			PK_ERR("111copy to user failed\n");
+		}
+		if (copy_to_user((void __user *) (pBufResolution->pResolution[2]) , (void *)pRes[2] , sizeof(MSDK_SENSOR_RESOLUTION_INFO_STRUCT))) {
+
+			PK_ERR("222copy to user failed\n");
 		}
     }
     else {
@@ -1830,6 +1858,10 @@ inline static int adopt_CAMERA_HW_GetResolution(void *pBuf)
 		kfree(pRes[1]);
 	}
 
+	if (pRes[2] != NULL) {
+		kfree(pRes[2]);
+	}
+
     return 0;
 }   /* adopt_CAMERA_HW_GetResolution() */
 
@@ -1840,12 +1872,14 @@ inline static int adopt_CAMERA_HW_GetResolution(void *pBuf)
 inline static int adopt_CAMERA_HW_GetInfo(void *pBuf)
 {
     ACDK_SENSOR_GETINFO_STRUCT *pSensorGetInfo = (ACDK_SENSOR_GETINFO_STRUCT *)pBuf;
-    MSDK_SENSOR_INFO_STRUCT *pInfo[2];
-    MSDK_SENSOR_CONFIG_STRUCT *pConfig[2];
-    MUINT32 *pScenarioId[2];
+//wangjie add the third camera data channel, 20170104
+    MSDK_SENSOR_INFO_STRUCT *pInfo[3];
+    MSDK_SENSOR_CONFIG_STRUCT *pConfig[3];
+    MUINT32 *pScenarioId[3];
+
     u32 i,j = 0;
 
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < 3; i++) {
 	    pInfo[i] = NULL;
 	    pConfig[i] =  NULL;
 	    pScenarioId[i] =  &(pSensorGetInfo->ScenarioId[i]);
@@ -1857,7 +1891,11 @@ inline static int adopt_CAMERA_HW_GetInfo(void *pBuf)
 	pConfig[0] = kmalloc(sizeof(MSDK_SENSOR_CONFIG_STRUCT), GFP_KERNEL);
 	pConfig[1] = kmalloc(sizeof(MSDK_SENSOR_CONFIG_STRUCT), GFP_KERNEL);
 
-	if (pInfo[0] == NULL || pInfo[1] == NULL || pConfig[0] == NULL || pConfig[1] == NULL){
+	pInfo[2] = kmalloc(sizeof(MSDK_SENSOR_INFO_STRUCT), GFP_KERNEL);
+	pConfig[2] = kmalloc(sizeof(MSDK_SENSOR_CONFIG_STRUCT), GFP_KERNEL);
+
+	if (pInfo[0] == NULL || pInfo[1] == NULL || pConfig[0] == NULL ||
+		pConfig[1] == NULL || pInfo[2] == NULL || pConfig[2] == NULL){
 		PK_ERR(" ioctl allocate mem failed\n");
 		return -ENOMEM;
 	}
@@ -1867,13 +1905,19 @@ inline static int adopt_CAMERA_HW_GetInfo(void *pBuf)
 	memset(pConfig[0], 0, sizeof(MSDK_SENSOR_CONFIG_STRUCT));
 	memset(pConfig[1], 0, sizeof(MSDK_SENSOR_CONFIG_STRUCT));
 
+	memset(pInfo[2], 0, sizeof(MSDK_SENSOR_INFO_STRUCT));
+	memset(pConfig[2], 0, sizeof(MSDK_SENSOR_CONFIG_STRUCT));
+
+
     if (NULL == pSensorGetInfo) {
     PK_DBG("[CAMERA_HW] NULL arg.\n");
     return -EFAULT;
     }
 
-    if ((NULL == pSensorGetInfo->pInfo[0]) || (NULL == pSensorGetInfo->pInfo[1]) ||
-    (NULL == pSensorGetInfo->pConfig[0]) || (NULL == pSensorGetInfo->pConfig[1]))  {
+	if ((NULL == pSensorGetInfo->pInfo[0]) || (NULL == pSensorGetInfo->pInfo[1]) ||
+	(NULL == pSensorGetInfo->pInfo[2]) || (NULL == pSensorGetInfo->pConfig[0])||
+	(NULL == pSensorGetInfo->pConfig[0]) || (NULL == pSensorGetInfo->pConfig[2]))  {
+
     PK_DBG("[CAMERA_HW] NULL arg.\n");
     return -EFAULT;
     }
@@ -1887,11 +1931,11 @@ inline static int adopt_CAMERA_HW_GetInfo(void *pBuf)
 
 
 
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < 3; i++) {
 	    /* SenorInfo */
 	    if (copy_to_user((void __user *)(pSensorGetInfo->pInfo[i]), (void *)pInfo[i] , sizeof(MSDK_SENSOR_INFO_STRUCT))) {
 	        PK_DBG("[CAMERA_HW][info] ioctl copy to user failed\n");
-			for (j = 0; j < 2; j++) {
+			for (j = 0; j < 3; j++) {
 			  	if (pInfo[j] != NULL) kfree(pInfo[j]);
 			  	if (pConfig[j] != NULL) kfree(pConfig[j]);
 				pInfo[j] = NULL;
@@ -1903,7 +1947,7 @@ inline static int adopt_CAMERA_HW_GetInfo(void *pBuf)
 	    /* SensorConfig */
 	    if (copy_to_user((void __user *) (pSensorGetInfo->pConfig[i]) , (void *)pConfig[i] , sizeof(MSDK_SENSOR_CONFIG_STRUCT))) {
 	        PK_DBG("[CAMERA_HW][config] ioctl copy to user failed\n");
-			for (j = 0; j < 2; j++) {
+			for (j = 0; j < 3; j++) {
 			  	if (pInfo[j] != NULL) kfree(pInfo[j]);
 			  	if (pConfig[j] != NULL) kfree(pConfig[j]);
 				pInfo[j] = NULL;
@@ -1912,7 +1956,7 @@ inline static int adopt_CAMERA_HW_GetInfo(void *pBuf)
 	        return -EFAULT;
 	    }
     }
-	for (j = 0; j < 2; j++) {
+	for (j = 0; j < 3; j++) {
 		if (pInfo[j] != NULL) kfree(pInfo[j]);
 		if (pConfig[j] != NULL) kfree(pConfig[j]);
 		pInfo[j] = NULL;
@@ -1925,30 +1969,32 @@ inline static int adopt_CAMERA_HW_GetInfo(void *pBuf)
 /*******************************************************************************
 * adopt_CAMERA_HW_GetInfo
 ********************************************************************************/
-MSDK_SENSOR_INFO_STRUCT ginfo[2];
-MSDK_SENSOR_INFO_STRUCT ginfo1[2];
-MSDK_SENSOR_INFO_STRUCT ginfo2[2];
-MSDK_SENSOR_INFO_STRUCT ginfo3[2];
-MSDK_SENSOR_INFO_STRUCT ginfo4[2];
+
+MSDK_SENSOR_INFO_STRUCT ginfo[3];
+MSDK_SENSOR_INFO_STRUCT ginfo1[3];
+MSDK_SENSOR_INFO_STRUCT ginfo2[3];
+MSDK_SENSOR_INFO_STRUCT ginfo3[3];
+MSDK_SENSOR_INFO_STRUCT ginfo4[3];
+
 /* adopt_CAMERA_HW_GetInfo() */
 inline static int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 {
     IMAGESENSOR_GETINFO_STRUCT *pSensorGetInfo = (IMAGESENSOR_GETINFO_STRUCT *)pBuf;
     ACDK_SENSOR_INFO2_STRUCT *pSensorInfo = NULL;//{0};
     MUINT32 IDNum = 0;
-    MSDK_SENSOR_INFO_STRUCT *pInfo[2] = {NULL,NULL};
-    MSDK_SENSOR_CONFIG_STRUCT  *pConfig[2] = {NULL,NULL};
-    MSDK_SENSOR_INFO_STRUCT *pInfo1[2] = {NULL,NULL};
-    MSDK_SENSOR_CONFIG_STRUCT  *pConfig1[2]= {NULL,NULL};
-    MSDK_SENSOR_INFO_STRUCT *pInfo2[2] = {NULL,NULL};
-    MSDK_SENSOR_CONFIG_STRUCT  *pConfig2[2]= {NULL,NULL};
-    MSDK_SENSOR_INFO_STRUCT *pInfo3[2] = {NULL,NULL};
-    MSDK_SENSOR_CONFIG_STRUCT  *pConfig3[2] = {NULL,NULL};
-    MSDK_SENSOR_INFO_STRUCT *pInfo4[2] = {NULL,NULL};
-    MSDK_SENSOR_CONFIG_STRUCT  *pConfig4[2]= {NULL,NULL};
-    MSDK_SENSOR_RESOLUTION_INFO_STRUCT  *psensorResolution[2] = {NULL,NULL};
-
-    MUINT32 ScenarioId[2], *pScenarioId[2];
+//wangjie add the third camera data channel, 20170104
+    MSDK_SENSOR_INFO_STRUCT *pInfo[3] = {NULL,NULL,NULL};
+    MSDK_SENSOR_CONFIG_STRUCT  *pConfig[3] = {NULL,NULL,NULL};
+    MSDK_SENSOR_INFO_STRUCT *pInfo1[3] = {NULL,NULL,NULL};
+    MSDK_SENSOR_CONFIG_STRUCT  *pConfig1[3]= {NULL,NULL,NULL};
+    MSDK_SENSOR_INFO_STRUCT *pInfo2[3] = {NULL,NULL,NULL};
+    MSDK_SENSOR_CONFIG_STRUCT  *pConfig2[3]= {NULL,NULL,NULL};
+    MSDK_SENSOR_INFO_STRUCT *pInfo3[3] = {NULL,NULL,NULL};
+    MSDK_SENSOR_CONFIG_STRUCT  *pConfig3[3] = {NULL,NULL,NULL};
+    MSDK_SENSOR_INFO_STRUCT *pInfo4[3] = {NULL,NULL,NULL};
+    MSDK_SENSOR_CONFIG_STRUCT  *pConfig4[3]= {NULL,NULL,NULL};
+    MSDK_SENSOR_RESOLUTION_INFO_STRUCT  *psensorResolution[3] = {NULL,NULL,NULL};
+	MUINT32 ScenarioId[3], *pScenarioId[3];
     u32 i = 0;
     PK_DBG("[adopt_CAMERA_HW_GetInfo2]Entry\n");
 
@@ -1962,7 +2008,7 @@ inline static int adopt_CAMERA_HW_GetInfo2(void *pBuf)
     return -EFAULT;
     }
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < 3; i++) {
 	   pInfo[i] =  &ginfo[i];
 	   pConfig[i] =  kmalloc(sizeof(MSDK_SENSOR_CONFIG_STRUCT), GFP_KERNEL);
 	   pInfo1[i] =	&ginfo1[i];
@@ -1978,12 +2024,16 @@ inline static int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 	}
 	pSensorInfo = kmalloc(sizeof(ACDK_SENSOR_INFO2_STRUCT), GFP_KERNEL);
 
-	if (pConfig[0] == NULL || pConfig[1] == NULL || pConfig1[0] == NULL || pConfig1[1] == NULL ||
-		pConfig2[0] == NULL || pConfig2[1] == NULL || pConfig3[0] == NULL || pConfig3[1] == NULL ||
-		pConfig4[0] == NULL || pConfig4[1] == NULL || pSensorInfo ==NULL ||
-		psensorResolution[0] == NULL || psensorResolution[1]==NULL) {
+	if (pConfig[0] == NULL || pConfig[1] == NULL|| pConfig[2] == NULL ||
+		pConfig1[0] == NULL || pConfig1[1] == NULL || pConfig1[2] == NULL ||
+		pConfig2[0] == NULL || pConfig2[1] == NULL || pConfig2[2] == NULL ||
+		pConfig3[0] == NULL || pConfig3[1] == NULL || pConfig3[2] == NULL ||
+		pConfig4[0] == NULL || pConfig4[1] == NULL || pConfig4[2] == NULL ||
+		psensorResolution[0] == NULL || psensorResolution[1]==NULL ||psensorResolution[3]==NULL ||
+		pSensorInfo ==NULL) {
+
 		PK_ERR(" ioctl allocate mem failed\n");
-		for (i = 0; i < 2; i++) {
+		for (i = 0; i < 3; i++) {
 			if(pConfig[i] != NULL) kfree(pConfig[i]);
 			if(pConfig1[i] != NULL) kfree(pConfig1[i]);
 			if(pConfig2[i] != NULL) kfree(pConfig2[i]);
@@ -2006,23 +2056,32 @@ inline static int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 
     /* TO get preview value */
     ScenarioId[0] = ScenarioId[1] = MSDK_SCENARIO_ID_CAMERA_PREVIEW;
+	ScenarioId[2] = ScenarioId[1];
     g_pSensorFunc->SensorGetInfo(pScenarioId, pInfo, pConfig);
     /*  */
     ScenarioId[0] = ScenarioId[1] = MSDK_SCENARIO_ID_CAMERA_CAPTURE_JPEG;
+		ScenarioId[2] = ScenarioId[1];
     g_pSensorFunc->SensorGetInfo(pScenarioId, pInfo1, pConfig1);
     /*  */
     ScenarioId[0] = ScenarioId[1] = MSDK_SCENARIO_ID_VIDEO_PREVIEW;
+	ScenarioId[2] = ScenarioId[1];
     g_pSensorFunc->SensorGetInfo(pScenarioId, pInfo2, pConfig2);
     /*  */
     ScenarioId[0] = ScenarioId[1] = MSDK_SCENARIO_ID_HIGH_SPEED_VIDEO;
+	ScenarioId[2] = ScenarioId[1];
     g_pSensorFunc->SensorGetInfo(pScenarioId, pInfo3, pConfig3);
     /*  */
     ScenarioId[0] = ScenarioId[1] = MSDK_SCENARIO_ID_SLIM_VIDEO;
+	ScenarioId[2] = ScenarioId[1];
     g_pSensorFunc->SensorGetInfo(pScenarioId, pInfo4, pConfig4);
     /* To set sensor information */
     if (DUAL_CAMERA_MAIN_SENSOR == pSensorGetInfo->SensorId) {
     IDNum = 0;
     }
+	else if (DUAL_CAMERA_MAIN_2_SENSOR == pSensorGetInfo->SensorId) {
+	    IDNum = 2;
+    }
+
     else
     {
     IDNum = 1;
@@ -2117,23 +2176,32 @@ inline static int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 	pSensorInfo->SensorMIPIDeskew                       = pInfo[IDNum]->SensorMIPIDeskew;
     /* TO get preview value */
     ScenarioId[0] = ScenarioId[1] = MSDK_SCENARIO_ID_CUSTOM1;
+		ScenarioId[2] = ScenarioId[1];
     g_pSensorFunc->SensorGetInfo(pScenarioId, pInfo, pConfig);
     /*  */
     ScenarioId[0] = ScenarioId[1] = MSDK_SCENARIO_ID_CUSTOM2;
+	ScenarioId[2] = ScenarioId[1];
     g_pSensorFunc->SensorGetInfo(pScenarioId, pInfo1, pConfig1);
     /*  */
     ScenarioId[0] = ScenarioId[1] = MSDK_SCENARIO_ID_CUSTOM3;
+	ScenarioId[2] = ScenarioId[1];
     g_pSensorFunc->SensorGetInfo(pScenarioId, pInfo2, pConfig2);
     /*  */
     ScenarioId[0] = ScenarioId[1] = MSDK_SCENARIO_ID_CUSTOM4;
+	ScenarioId[2] = ScenarioId[1];
     g_pSensorFunc->SensorGetInfo(pScenarioId, pInfo3, pConfig3);
     /*  */
     ScenarioId[0] = ScenarioId[1] = MSDK_SCENARIO_ID_CUSTOM5;
+	ScenarioId[2] = ScenarioId[1];
     g_pSensorFunc->SensorGetInfo(pScenarioId, pInfo4, pConfig4);
     /* To set sensor information */
     if (DUAL_CAMERA_MAIN_SENSOR == pSensorGetInfo->SensorId) {
     IDNum = 0;
     }
+	else if (DUAL_CAMERA_MAIN_2_SENSOR == pSensorGetInfo->SensorId) {
+	    IDNum = 2;
+    }
+
     else
     {
     IDNum = 1;
@@ -2151,7 +2219,7 @@ inline static int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 
     if (copy_to_user((void __user *)(pSensorGetInfo->pInfo), (void *)(pSensorInfo), sizeof(ACDK_SENSOR_INFO2_STRUCT))) {
 	    PK_DBG("[CAMERA_HW][info] ioctl copy to user failed\n");
-		for (i = 0; i < 2; i++) {
+		for (i = 0; i < 3; i++) {
 			if(pConfig[i] != NULL) kfree(pConfig[i]);
 			if(pConfig1[i] != NULL) kfree(pConfig1[i]);
 			if(pConfig2[i] != NULL) kfree(pConfig2[i]);
@@ -2182,7 +2250,7 @@ inline static int adopt_CAMERA_HW_GetInfo2(void *pBuf)
     PK_DBG("[adopt_CAMERA_HW_GetInfo2]Resolution\n");
     if (copy_to_user((void __user *) (pSensorGetInfo->pSensorResolution) , (void *)psensorResolution[0] , sizeof(MSDK_SENSOR_RESOLUTION_INFO_STRUCT))) {
        PK_DBG("[CAMERA_HW][Resolution] ioctl copy to user failed\n");
-	   for (i = 0; i < 2; i++) {
+	   for (i = 0; i < 3; i++) {
 		   if(pConfig[i] != NULL) kfree(pConfig[i]);
 		   if(pConfig1[i] != NULL) kfree(pConfig1[i]);
 		   if(pConfig2[i] != NULL) kfree(pConfig2[i]);
@@ -2200,11 +2268,37 @@ inline static int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 		pSensorInfo = NULL;
        return -EFAULT;
     }
+//wangjie add the third camera data channel, 20170104
+	} else if (DUAL_CAMERA_MAIN_2_SENSOR == pSensorGetInfo->SensorId) {
+		/* Resolution */
+		PK_DBG("[adopt_CAMERA_HW_GetInfo2]Resolution\n");
+		if (copy_to_user((void __user *) (pSensorGetInfo->pSensorResolution) , (void *)psensorResolution[2] , sizeof(MSDK_SENSOR_RESOLUTION_INFO_STRUCT))) {
+			PK_DBG("[CAMERA_HW][Resolution] ioctl copy to user failed\n");
+			for (i = 0; i < 3; i++) {
+
+			   if(pConfig[i] != NULL) kfree(pConfig[i]);
+			   if(pConfig1[i] != NULL) kfree(pConfig1[i]);
+			   if(pConfig2[i] != NULL) kfree(pConfig2[i]);
+			   if(pConfig3[i] != NULL) kfree(pConfig3[i]);
+			   if(pConfig4[i] != NULL) kfree(pConfig4[i]);
+			   if(psensorResolution[i] != NULL) kfree(psensorResolution[i]);
+			   pConfig[i] = NULL;
+			   pConfig1[i] = NULL;
+			   pConfig2[i] = NULL;
+			   pConfig3[i] =  NULL;
+			   pConfig4[i] =  NULL;
+			   psensorResolution[i] = NULL;
+			}
+			kfree(pSensorInfo);
+			pSensorInfo = NULL;
+			return -EFAULT;
+		}
+
     } else{
      /* Resolution */
      if (copy_to_user((void __user *) (pSensorGetInfo->pSensorResolution) , (void *)psensorResolution[1] , sizeof(MSDK_SENSOR_RESOLUTION_INFO_STRUCT))) {
         PK_DBG("[CAMERA_HW][Resolution] ioctl copy to user failed\n");
-		for (i = 0; i < 2; i++) {
+		for (i = 0; i < 3; i++) {
 			if(pConfig[i] != NULL) kfree(pConfig[i]);
 			if(pConfig1[i] != NULL) kfree(pConfig1[i]);
 			if(pConfig2[i] != NULL) kfree(pConfig2[i]);
@@ -2224,7 +2318,7 @@ inline static int adopt_CAMERA_HW_GetInfo2(void *pBuf)
     }
     }
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < 3; i++) {
 		if(pConfig[i] != NULL) kfree(pConfig[i]);
 		if(pConfig1[i] != NULL) kfree(pConfig1[i]);
 		if(pConfig2[i] != NULL) kfree(pConfig2[i]);
@@ -3347,11 +3441,15 @@ bool _hwPowerOn(PowerType type, int powerVolt)
 		if (regulator_set_voltage(reg , powerVolt, powerVolt) != 0) {
 			PK_DBG("[_hwPowerOn]fail to regulator_set_voltage, powertype:%d powerId:%d\n", type, powerVolt);
 			return ret;
-	}
+	    }
+	   if(!(type == DVDD || type == DOVDD || type == AFVDD))
+	   {
 		if (regulator_enable(reg) != 0) {
 			PK_DBG("[_hwPowerOn]fail to regulator_enable, powertype:%d powerId:%d\n", type, powerVolt);
-	    return ret;
-	}
+	        return ret;
+	    }
+	   }
+		
 	ret = true;
     } else {
 		PK_ERR("[_hwPowerOn]IS_ERR_OR_NULL powertype:%d reg %p\n", type,reg);
@@ -3391,12 +3489,16 @@ bool _hwPowerDown(PowerType type)
     	return ret;
 
     if (!IS_ERR(reg)) {
-	if (regulator_is_enabled(reg) != 0) {
+	    if (regulator_is_enabled(reg) != 0) {
 			PK_DBG("[_hwPowerDown]%d is enabled\n", type);
-	}
-		if (regulator_disable(reg) != 0) {
-			PK_DBG("[_hwPowerDown]fail to regulator_disable, powertype: %d\n\n", type);
-			return ret;
+	    }
+	
+	    if(!(type == DVDD || type == DOVDD || type == AFVDD))
+		{
+			if (regulator_disable(reg) != 0) {
+			    PK_DBG("[_hwPowerDown]fail to regulator_disable, powertype: %d\n\n", type);
+			    return ret;
+		    }
 		}
 	ret = true;
     } else {
@@ -3418,19 +3520,27 @@ static int compat_get_acdk_sensor_getinfo_struct(
     compat_uint_t i;
     compat_uptr_t p;
     int err;
-
+//wangjie add the third camera data channel, 20170104
     err = get_user(i, &data32->ScenarioId[0]);
     err |= put_user(i, &data->ScenarioId[0]);
     err = get_user(i, &data32->ScenarioId[1]);
     err |= put_user(i, &data->ScenarioId[1]);
+
+    err = get_user(i, &data32->ScenarioId[2]);
+    err |= put_user(i, &data->ScenarioId[2]);
+
     err = get_user(p, &data32->pInfo[0]);
     err |= put_user(compat_ptr(p), &data->pInfo[0]);
     err = get_user(p, &data32->pInfo[1]);
     err |= put_user(compat_ptr(p), &data->pInfo[1]);
+	err = get_user(p, &data32->pInfo[2]);
+    err |= put_user(compat_ptr(p), &data->pInfo[2]);
     err = get_user(p, &data32->pInfo[0]);
     err |= put_user(compat_ptr(p), &data->pConfig[0]);
     err = get_user(p, &data32->pInfo[1]);
     err |= put_user(compat_ptr(p), &data->pConfig[1]);
+	err = get_user(p, &data32->pInfo[2]);
+	err |= put_user(compat_ptr(p), &data->pConfig[2]);
 
     return err;
 }
@@ -3446,6 +3556,8 @@ static int compat_put_acdk_sensor_getinfo_struct(
     err |= put_user(i, &data32->ScenarioId[0]);
     err = get_user(i, &data->ScenarioId[1]);
     err |= put_user(i, &data32->ScenarioId[1]);
+    err = get_user(i, &data->ScenarioId[2]);
+    err |= put_user(i, &data32->ScenarioId[2]);
     return err;
 }
 
@@ -3579,6 +3691,8 @@ static int compat_get_acdk_sensor_resolution_info_struct(
     err |= put_user(compat_ptr(p), &data->pResolution[0]);
     err = get_user(p, &data32->pResolution[1]);
     err |= put_user(compat_ptr(p), &data->pResolution[1]);
+	err = get_user(p, &data32->pResolution[2]);
+	err |= put_user(compat_ptr(p), &data->pResolution[2]);
 
     /* err = copy_from_user((void*)data, (void*)data32, sizeof(compat_uptr_t) * 2); */
     /* err = copy_from_user((void*)data[0], (void*)data32[0], sizeof(ACDK_SENSOR_RESOLUTION_INFO_STRUCT)); */
