@@ -959,6 +959,12 @@ LCM_DRIVER *lcm_driver_list[] = {
 #if defined(S6E3HA3_WQHD_2K_CMD)
 	&s6e3ha3_wqhd_2k_cmd_lcm_drv,
 #endif
+
+/*begin  add by dangchaobing for boe lcm*/ 
+#if defined(OTM1901A_FHD_DSI_VDO_BOE_NT50358) 
+    &otm1901a_fhd_dsi_vdo_boe_nt50358_lcm_drv,
+#endif
+/*end    add by dangchaobing for boe lcm*/
 };
 
 unsigned char lcm_name_list[][128] = {

@@ -249,6 +249,9 @@ extern LCM_DRIVER hx8394c_wxga_dsi_vdo_lcm_drv;
 extern LCM_DRIVER nt35595_truly_fhd_dsi_vdo_lcm_drv;
 extern LCM_DRIVER nt36850_wqhd_dsi_2k_cmd_lcm_drv;
 extern LCM_DRIVER s6e3ha3_wqhd_2k_cmd_lcm_drv;
+/*begin add by dangchaobing for boe lcm*/
+extern LCM_DRIVER otm1901a_fhd_dsi_vdo_boe_nt50358_lcm_drv;
+/*end   add by dangchaobing for boe lcm*/
 
 #ifdef BUILD_LK
 extern void mdelay(unsigned long msec);
